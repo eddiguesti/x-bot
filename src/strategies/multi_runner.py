@@ -494,10 +494,16 @@ class MultiStrategyRunner:
 
         results = {st: [] for st in self.strategies}
 
-        # Get consensus for all assets
-        consensus_map = self.consensus_engine.calculate_all_consensus(
-            self.session, lookback_hours=24, save_snapshot=True
-        )
+        # Get consensus for each asset
+        consensus_map = {}
+        for asset in assets:
+            try:
+                consensus = self.consensus_engine.calculate_consensus(
+                    self.session, asset, lookback_hours=24, save_snapshot=False
+                )
+                consensus_map[asset] = consensus
+            except Exception as e:
+                logger.warning(f"Failed to get consensus for {asset.value}: {e}")
 
         for strategy_type, strategy in self.strategies.items():
             # Check exits first
