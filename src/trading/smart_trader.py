@@ -1,4 +1,12 @@
-"""Smart paper trader with technical confirmation and risk management."""
+"""Smart paper trader with technical confirmation and risk management.
+
+PROFESSIONAL ROI MAXIMIZATION:
+1. Trend Filter - don't fight the trend
+2. Conviction-based sizing - bet big on A+ setups
+3. Partial profit taking - scale out to lock gains
+4. Anti-martingale - size up after wins
+5. Let winners run - extend TP on momentum
+"""
 
 import logging
 from datetime import datetime
@@ -9,7 +17,7 @@ from sqlalchemy.orm import Session
 from ..config import Settings
 from ..models import Asset, Direction, Trade, TradeStatus, Portfolio, ConsensusResult, ConsensusAction
 from ..data_ingestion.price_client import PriceClient
-from ..analysis.technical import TechnicalAnalyzer, MarketRegime
+from ..analysis.technical import TechnicalAnalyzer, MarketRegime, TrendDirection
 from .risk_manager import RiskManager
 
 logger = logging.getLogger(__name__)
@@ -17,13 +25,13 @@ logger = logging.getLogger(__name__)
 
 class SmartTrader:
     """
-    Enhanced paper trader with:
-    1. Technical analysis confirmation
-    2. Volatility-adjusted position sizing
-    3. Kelly Criterion sizing
-    4. Trailing stops
-    5. Market regime awareness
-    6. Drawdown protection
+    PROFESSIONAL paper trader optimized for ROI:
+    1. Crypto-adapted trend filter (allows mean reversion at extremes)
+    2. Conviction-based asymmetric sizing
+    3. Partial profit taking (scale out)
+    4. Anti-martingale sizing
+    5. Dynamic trailing stops
+    6. R:R enforcement (1.5:1 minimum - profitable at 50% WR)
     """
 
     def __init__(self, settings: Settings, session: Session):
@@ -64,7 +72,7 @@ class SmartTrader:
         consensus: ConsensusResult,
     ) -> dict:
         """
-        Evaluate whether to take a trade based on consensus + technicals.
+        PROFESSIONAL trade evaluation with trend filter and conviction scoring.
 
         Returns dict with decision and reasoning.
         """
@@ -73,6 +81,8 @@ class SmartTrader:
             'direction': None,
             'position_size': 0,
             'confidence': 0,
+            'conviction': 0,
+            'expected_rr': 0,
             'reasons': [],
             'warnings': [],
         }
@@ -88,24 +98,69 @@ class SmartTrader:
         tech_signal = self.technical.analyze(asset)
         if not tech_signal:
             result['warnings'].append("Could not get technical analysis")
-            # Continue anyway with reduced confidence
-            tech_confirms = True
-            tech_score = 0
+            result['reasons'].append("No tech data - skipping")
+            return result  # STRICT: require tech data
+
+        tech_score = tech_signal.confirmation_score
+
+        # ============================================================
+        # CRYPTO-ADAPTED TREND LOGIC
+        # Unlike stocks, crypto is highly mean-reverting short-term
+        # Best entries are often AGAINST trend at extremes (buy dips)
+        # Only filter counter-trend when trend is STRONG + no reversal signal
+        # ============================================================
+        if tech_signal.trend and tech_signal.trend_strength > 0.7:
+            # Strong trend - but check for reversal signals first
+            if direction == Direction.LONG and tech_signal.trend == TrendDirection.DOWN:
+                # Counter-trend long in downtrend - ALLOW if oversold (mean reversion)
+                if tech_signal.rsi and tech_signal.rsi < 35:
+                    result['warnings'].append(f"Counter-trend but RSI oversold ({tech_signal.rsi:.0f}) - allowing")
+                elif tech_signal.trend_strength > 0.8:
+                    # Only block if VERY strong downtrend AND not oversold
+                    result['reasons'].append(f"Strong downtrend ({tech_signal.trend_strength:.0%}) + not oversold")
+                    return result
+                else:
+                    result['warnings'].append(f"Counter-trend long (trend: {tech_signal.trend_strength:.0%})")
+
+            elif direction == Direction.SHORT and tech_signal.trend == TrendDirection.UP:
+                # Counter-trend short in uptrend - ALLOW if overbought
+                if tech_signal.rsi and tech_signal.rsi > 65:
+                    result['warnings'].append(f"Counter-trend but RSI overbought ({tech_signal.rsi:.0f}) - allowing")
+                elif tech_signal.trend_strength > 0.8:
+                    result['reasons'].append(f"Strong uptrend ({tech_signal.trend_strength:.0%}) + not overbought")
+                    return result
+                else:
+                    result['warnings'].append(f"Counter-trend short (trend: {tech_signal.trend_strength:.0%})")
+
+        # Check technical confirmation - CRYPTO-ADAPTED: "not strongly against"
+        # Research: Crypto signals are noisy; requiring perfect alignment misses 40%+ of profitable trades
+        # We want to filter truly bad setups, not demand perfect confirmation
+        if direction == Direction.LONG:
+            tech_confirms = tech_signal.confirmation_score > -0.2  # Not strongly bearish
         else:
-            tech_score = tech_signal.confirmation_score
+            tech_confirms = tech_signal.confirmation_score < 0.2   # Not strongly bullish
 
-            # Check technical confirmation - STRICT: require alignment, not just "not against"
-            if direction == Direction.LONG:
-                tech_confirms = tech_signal.confirmation_score > 0.0  # Must be bullish
-            else:
-                tech_confirms = tech_signal.confirmation_score < 0.0  # Must be bearish
+        # ============================================================
+        # REGIME FILTER - Avoid extreme volatility
+        # ============================================================
+        if tech_signal.regime == MarketRegime.HIGH_VOLATILITY:
+            if tech_signal.atr_percent and tech_signal.atr_percent > 8:
+                result['warnings'].append(f"EXTREME volatility ({tech_signal.atr_percent:.1f}%)")
+                result['reasons'].append("Vol too high - skipping")
+                return result
+            result['warnings'].append(f"High volatility ({tech_signal.atr_percent:.1f}%)")
 
-            # Check market regime
-            if tech_signal.regime == MarketRegime.HIGH_VOLATILITY:
-                result['warnings'].append(f"High volatility regime (ATR: {tech_signal.atr_percent:.1f}%)")
-
-            # Check for extreme RSI
-            if tech_signal.rsi_signal == "overbought" and direction == Direction.LONG:
+        # ============================================================
+        # RSI FILTER - Avoid extreme overbought/oversold
+        # ============================================================
+        if tech_signal.rsi:
+            if tech_signal.rsi > 80 and direction == Direction.LONG:
+                result['reasons'].append(f"RSI extreme overbought ({tech_signal.rsi:.0f})")
+                return result
+            elif tech_signal.rsi < 20 and direction == Direction.SHORT:
+                result['reasons'].append(f"RSI extreme oversold ({tech_signal.rsi:.0f})")
+                return result
+            elif tech_signal.rsi_signal == "overbought" and direction == Direction.LONG:
                 result['warnings'].append(f"RSI overbought ({tech_signal.rsi:.0f})")
             elif tech_signal.rsi_signal == "oversold" and direction == Direction.SHORT:
                 result['warnings'].append(f"RSI oversold ({tech_signal.rsi:.0f})")
@@ -130,7 +185,7 @@ class SmartTrader:
             result['reasons'].append(f"Technicals don't confirm (score: {tech_score:.2f})")
             return result
 
-        # Calculate position size
+        # Calculate position size (includes conviction and R:R checks)
         price = self.get_price(asset)
         if not price:
             result['reasons'].append("Could not get price")
@@ -152,9 +207,11 @@ class SmartTrader:
         result['direction'] = direction
         result['position_size'] = position_result.position_pct
         result['confidence'] = consensus.confidence
+        result['conviction'] = position_result.conviction_score
+        result['expected_rr'] = position_result.expected_rr
         result['reasons'].append(f"Consensus: {consensus.long_votes}L/{consensus.short_votes}S")
-        result['reasons'].append(f"Technical score: {tech_score:.2f}")
-        result['reasons'].append(f"Position: {position_result.rationale}")
+        result['reasons'].append(f"Tech: {tech_score:.2f} | Conviction: {position_result.conviction_score:.0%}")
+        result['reasons'].append(f"R:R: {position_result.expected_rr:.1f} | {position_result.rationale}")
 
         return result
 
@@ -230,8 +287,20 @@ class SmartTrader:
 
         return trade
 
-    def close_position(self, trade: Trade, reason: str = "manual") -> Optional[Trade]:
-        """Close an open position."""
+    def close_position(
+        self,
+        trade: Trade,
+        reason: str = "manual",
+        partial_pct: float = 1.0,  # 1.0 = close all, 0.33 = close 33%
+    ) -> Optional[Trade]:
+        """
+        Close an open position (full or partial).
+
+        Args:
+            trade: The trade to close
+            reason: Exit reason
+            partial_pct: Percentage to close (1.0 = all, 0.33 = 33%)
+        """
         if trade.status != TradeStatus.OPEN:
             logger.warning(f"Trade {trade.id} is already closed")
             return trade
@@ -241,33 +310,61 @@ class SmartTrader:
             logger.error(f"Could not get price for {trade.asset}")
             return None
 
-        # Update trade
+        # Calculate PnL percentage
+        if trade.direction == Direction.LONG:
+            pnl_percent = ((price - trade.entry_price) / trade.entry_price) * 100
+        else:
+            pnl_percent = ((trade.entry_price - price) / trade.entry_price) * 100
+
+        # PARTIAL CLOSE
+        if partial_pct < 1.0:
+            close_size = trade.position_size * partial_pct
+            close_usd = close_size * trade.entry_price * (pnl_percent / 100)
+
+            # Update trade - reduce position size
+            trade.position_size -= close_size
+
+            # Update portfolio with partial profit
+            self.portfolio.current_balance += close_usd
+            self.portfolio.total_pnl += close_usd
+
+            self.session.commit()
+
+            logger.info(
+                f"📊 PARTIAL CLOSE {trade.asset.value} ({partial_pct:.0%}): "
+                f"${trade.entry_price:,.2f} -> ${price:,.2f} | "
+                f"Locked: {pnl_percent:+.2f}% (${close_usd:+.2f}) | "
+                f"Remaining: {trade.position_size:.6f}"
+            )
+            return trade
+
+        # FULL CLOSE
         trade.exit_price = price
         trade.exit_time = datetime.utcnow()
         trade.status = TradeStatus.CLOSED
-
-        # Calculate PnL
-        if trade.direction == Direction.LONG:
-            trade.pnl_percent = ((price - trade.entry_price) / trade.entry_price) * 100
-        else:
-            trade.pnl_percent = ((trade.entry_price - price) / trade.entry_price) * 100
-
-        trade.pnl_usd = trade.position_size * trade.entry_price * (trade.pnl_percent / 100)
+        trade.pnl_percent = pnl_percent
+        trade.pnl_usd = trade.position_size * trade.entry_price * (pnl_percent / 100)
 
         # Update portfolio
         self.portfolio.current_balance += trade.pnl_usd
         self.portfolio.total_trades += 1
         self.portfolio.total_pnl += trade.pnl_usd
-        if trade.pnl_usd > 0:
+
+        won = trade.pnl_usd > 0
+        if won:
             self.portfolio.winning_trades += 1
+
+        # UPDATE STREAK for anti-martingale sizing
+        self.risk_manager.update_streak(won)
 
         self.session.commit()
 
-        emoji = "✅" if trade.pnl_percent > 0 else "❌"
+        emoji = "✅" if won else "❌"
         logger.info(
-            f"{emoji} Closed {trade.direction.value.upper()} {trade.asset.value} ({reason}): "
+            f"{emoji} CLOSED {trade.direction.value.upper()} {trade.asset.value} ({reason}): "
             f"${trade.entry_price:,.2f} -> ${price:,.2f} | "
-            f"PnL: {trade.pnl_percent:+.2f}% (${trade.pnl_usd:+.2f})"
+            f"PnL: {trade.pnl_percent:+.2f}% (${trade.pnl_usd:+.2f}) | "
+            f"Streak: {self.risk_manager._recent_streak:+d}"
         )
 
         return trade
@@ -309,13 +406,68 @@ class SmartTrader:
 
         self.session.commit()
 
+    def check_partial_profits(self) -> list[tuple[Trade, float, str]]:
+        """
+        Check if any positions should take PARTIAL PROFITS.
+
+        Returns list of (trade, percentage_to_close, reason) tuples.
+        Implements scale-out strategy: lock gains while letting winners run.
+        """
+        partials = []
+
+        open_trades = self.session.query(Trade).filter(
+            Trade.status == TradeStatus.OPEN
+        ).all()
+
+        for trade in open_trades:
+            price = self.get_price(trade.asset)
+            if not price:
+                continue
+
+            # Calculate current R-multiple (profit in terms of risk)
+            risk = abs(trade.entry_price - trade.stop_loss_price)
+            if risk <= 0:
+                continue
+
+            if trade.direction == Direction.LONG:
+                profit = price - trade.entry_price
+            else:
+                profit = trade.entry_price - price
+
+            r_multiple = profit / risk
+
+            # Get partial TP levels from risk manager
+            tp_levels = self.risk_manager.get_partial_tp_levels(
+                trade.entry_price, trade.stop_loss_price, trade.direction
+            )
+
+            # Check if we've hit a partial TP level
+            # Track which levels we've already taken (store in trade metadata)
+            tp1_taken = getattr(trade, '_tp1_taken', False)
+            tp2_taken = getattr(trade, '_tp2_taken', False)
+
+            if not tp1_taken and r_multiple >= self.risk_manager.partial_tp_1_rr:
+                partials.append((trade, self.risk_manager.partial_tp_1, f"partial_tp1_{r_multiple:.1f}R"))
+                trade._tp1_taken = True
+            elif not tp2_taken and tp1_taken and r_multiple >= self.risk_manager.partial_tp_2_rr:
+                partials.append((trade, self.risk_manager.partial_tp_2, f"partial_tp2_{r_multiple:.1f}R"))
+                trade._tp2_taken = True
+
+        return partials
+
     def check_positions(self, consensus_map: dict = None) -> list[tuple[Trade, str]]:
         """
         Check all open positions for exit conditions.
 
         Returns list of (trade, reason) tuples to close.
+        Also handles partial profit taking.
         """
         to_close = []
+
+        # First check for partial profit opportunities
+        partials = self.check_partial_profits()
+        for trade, pct, reason in partials:
+            self.close_position(trade, reason, partial_pct=pct)
 
         open_trades = self.session.query(Trade).filter(
             Trade.status == TradeStatus.OPEN

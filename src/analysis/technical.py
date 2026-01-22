@@ -396,26 +396,51 @@ class TechnicalAnalyzer:
         self,
         asset: Asset,
         direction: str,
-        entry_price: float
+        entry_price: float,
+        min_rr: float = 2.0,  # Minimum 2:1 R:R enforced
     ) -> tuple[float, float]:
         """
         Calculate dynamic stop loss and take profit based on ATR.
+
+        PROFESSIONAL R:R ENFORCEMENT:
+        - Minimum 2:1 R:R (can be higher based on volatility)
+        - Tighter stops in low vol, wider in high vol
+        - Target 3:1 in favorable conditions
 
         Returns (stop_loss_price, take_profit_price)
         """
         ohlcv = self.get_ohlcv(asset, '1h', 20)
         if ohlcv is None:
-            # Fallback to fixed percentages
+            # Fallback to fixed percentages with 2:1 R:R
             if direction == "long":
-                return entry_price * 0.98, entry_price * 1.04
+                return entry_price * 0.98, entry_price * 1.04  # 2% SL, 4% TP = 2:1
             else:
                 return entry_price * 1.02, entry_price * 0.96
 
-        atr, _ = self.calculate_atr(ohlcv)
+        atr, atr_percent = self.calculate_atr(ohlcv)
 
-        # Stop loss = 1.5 * ATR, Take profit = 2.5 * ATR (1.67 R:R)
-        sl_distance = atr * 1.5
-        tp_distance = atr * 2.5
+        # ADAPTIVE STOP based on volatility
+        # Low vol (<2%): Tight 1.2x ATR stop
+        # Normal (2-5%): Standard 1.5x ATR stop
+        # High vol (>5%): Wide 2.0x ATR stop (max 3%)
+        if atr_percent < 2:
+            sl_mult = 1.2
+            rr_ratio = 2.5  # Can aim higher in calm markets
+        elif atr_percent > 5:
+            sl_mult = 2.0
+            rr_ratio = max(min_rr, 2.0)  # Just hit minimum in choppy
+        else:
+            sl_mult = 1.5
+            rr_ratio = 2.5  # Target 2.5:1 normally
+
+        sl_distance = atr * sl_mult
+
+        # Cap stop loss at 3% max
+        max_sl = entry_price * 0.03
+        sl_distance = min(sl_distance, max_sl)
+
+        # Take profit = SL * R:R ratio (minimum 2:1)
+        tp_distance = sl_distance * max(min_rr, rr_ratio)
 
         if direction == "long":
             stop_loss = entry_price - sl_distance
