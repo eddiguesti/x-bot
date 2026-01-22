@@ -2,5 +2,5 @@
 builder = "nixpacks"
 
 [deploy]
-startCommand = "python run_smart_trading.py"
+startCommand = "python run_strategies.py --continuous --interval 30"
 restartPolicyType = "always"

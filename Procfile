@@ -1,1 +1,1 @@
-worker: python run_smart_trading.py
+worker: python run_strategies.py --continuous --interval 30
