@@ -53,11 +53,11 @@ class RiskManager:
     # High correlation means we should reduce combined exposure
     CORRELATION_GROUPS = {
         'btc_correlated': [Asset.BTC, Asset.ETH, Asset.LTC],
-        'alt_l1': [Asset.SOL, Asset.AVAX, Asset.NEAR, Asset.APT, Asset.FTM],
+        'alt_l1': [Asset.SOL, Asset.AVAX, Asset.NEAR, Asset.APT],
         'defi': [Asset.UNI, Asset.LINK, Asset.INJ],
         'meme': [Asset.DOGE, Asset.SHIB],
-        'l2': [Asset.ARB, Asset.OP, Asset.MATIC],
-        'other': [Asset.XRP, Asset.ADA, Asset.DOT, Asset.ATOM],
+        'l2': [Asset.ARB, Asset.OP],
+        'other': [Asset.XRP, Asset.ADA, Asset.DOT, Asset.ATOM, Asset.TAO],
     }
 
     def __init__(self, settings: Settings, session: Session):
