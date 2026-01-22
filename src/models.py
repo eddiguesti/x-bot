@@ -276,6 +276,9 @@ class Trade(Base):
     stop_loss_price = Column(Float)
     take_profit_price = Column(Float)
 
+    # Metadata
+    notes = Column(String(500))  # For tagging trades with strategy, etc.
+
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
