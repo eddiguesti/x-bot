@@ -1,0 +1,15 @@
+{
+  "creators": [
+    {"username": "100trillionUSD", "display_name": "PlanB"},
+    {"username": "CryptoCapo_", "display_name": "Crypto Capo"},
+    {"username": "CryptoCred", "display_name": "Cred"},
+    {"username": "inversebrah", "display_name": "inversebrah"},
+    {"username": "CryptoKaleo", "display_name": "Kaleo"},
+    {"username": "ColdBloodShill", "display_name": "ColdBloodShill"},
+    {"username": "TheCryptoDog", "display_name": "The Crypto Dog"},
+    {"username": "CryptoGodJohn", "display_name": "Crypto God John"},
+    {"username": "AltcoinPsycho", "display_name": "Altcoin Psycho"},
+    {"username": "CryptoWizardd", "display_name": "Crypto Wizard"}
+  ],
+  "_note": "Add crypto traders to track. Username is X handle without @. Maximum recommended: 100 creators."
+}
