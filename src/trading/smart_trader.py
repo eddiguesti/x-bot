@@ -94,11 +94,11 @@ class SmartTrader:
         else:
             tech_score = tech_signal.confirmation_score
 
-            # Check technical confirmation
+            # Check technical confirmation - STRICT: require alignment, not just "not against"
             if direction == Direction.LONG:
-                tech_confirms = tech_signal.confirmation_score > -0.3  # Not strongly bearish
+                tech_confirms = tech_signal.confirmation_score > 0.0  # Must be bullish
             else:
-                tech_confirms = tech_signal.confirmation_score < 0.3  # Not strongly bullish
+                tech_confirms = tech_signal.confirmation_score < 0.0  # Must be bearish
 
             # Check market regime
             if tech_signal.regime == MarketRegime.HIGH_VOLATILITY:

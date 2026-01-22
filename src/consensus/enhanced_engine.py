@@ -37,6 +37,7 @@ class EnhancedConsensusEngine:
         # Quality thresholds
         self.min_signal_confidence = 0.3  # Ignore very low confidence signals
         self.min_creator_accuracy = 0.3  # Ignore creators with < 30% accuracy
+        self.min_signals_for_trade = 5  # Require minimum signals for statistical reliability
 
         # Momentum parameters
         self.momentum_window_hours = 6  # Look at recent momentum
@@ -302,6 +303,11 @@ class EnhancedConsensusEngine:
         2. Vote ratio (how unanimous)
         3. Sample size (more signals = more confident)
         """
+        # PROFITABILITY FIX: Require minimum signals for statistical reliability
+        if total_signals < self.min_signals_for_trade:
+            logger.debug(f"Insufficient signals: {total_signals} < {self.min_signals_for_trade}")
+            return ConsensusAction.NO_TRADE, 0.0
+
         abs_score = abs(score)
 
         # Calculate vote ratio

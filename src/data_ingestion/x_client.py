@@ -39,6 +39,35 @@ class XClient:
         "AVAX", "LINK", "DOT", "MATIC", "SHIB"
     ]
 
+    # CURATED LIST: Top crypto traders/analysts to prioritize
+    # These accounts have track records of accurate market calls
+    # Updated regularly based on performance
+    TOP_CRYPTO_TRADERS = [
+        # Macro/BTC analysts
+        "WClementeIII",      # Will Clemente - on-chain analyst
+        "wolorado",          # Willy Woo - on-chain pioneer
+        "100trillionUSD",    # PlanB - Stock-to-Flow model creator
+        "CryptoCred",        # Technical analysis educator
+        "CryptoCapo_",       # Capo - swing trader
+        "ColdBloodShill",    # ColdBloodShill - technical analysis
+        "inversebrah",       # inversebrah - contrarian calls
+        "EmperorBTC",        # Emperor - trading education
+        "CryptoHayes",       # Arthur Hayes - BitMEX founder
+        "zaborovskyy",       # Alex Zaborovskyy - macro trader
+        # Alt/DeFi specialists
+        "Pentosh1",          # Pentoshi - alt trader
+        "AltcoinPsycho",     # AltcoinPsycho - alt trader
+        "blaborofseries",    # Bluntz - wave analysis
+        "CryptoDonAlt",      # DonAlt - technical analysis
+        "CryptoKaleo",       # Kaleo - swing trader
+        "SmartContracter",   # SmartContracter - DeFi
+        "CryptoGodJohn",     # CryptoGodJohn - alt calls
+        "TheCryptoDog",      # The Crypto Dog - trader
+        # News/sentiment
+        "whale_alert",       # Whale Alert - large transactions
+        "santaborofsent",    # Santiment - on-chain data
+    ]
+
     def __init__(self, settings: Settings):
         self.settings = settings
         self.client = mc.Sn13Client(
@@ -273,6 +302,7 @@ class XClient:
         self,
         limit: int = 100,
         hours_back: int = 24,
+        include_top_traders: bool = True,
     ) -> list[XPost]:
         """
         Fetch posts containing trading signals.
@@ -280,6 +310,7 @@ class XClient:
         Args:
             limit: Maximum posts to fetch
             hours_back: Hours to look back
+            include_top_traders: Also fetch from curated top traders list
 
         Returns:
             List of XPost objects with trading signals
@@ -291,15 +322,42 @@ class XClient:
         if start_date.date() >= end_date.date():
             start_date = end_date - timedelta(days=1)
 
-        # Use explicit trading keywords (max 10)
+        all_posts = []
+
+        # 1. Fetch from curated top traders first (higher quality signals)
+        if include_top_traders:
+            logger.info(f"Fetching from {len(self.TOP_CRYPTO_TRADERS)} curated traders...")
+            top_trader_posts = self.fetch_posts(
+                usernames=self.TOP_CRYPTO_TRADERS,
+                keywords=self.TRADING_KEYWORDS,
+                start_date=start_date,
+                end_date=end_date,
+                limit=limit // 2,
+            )
+            all_posts.extend(top_trader_posts)
+            logger.info(f"Got {len(top_trader_posts)} posts from top traders")
+
+        # 2. Also fetch general keyword search for broader coverage
         keywords = [
             "long BTC", "short BTC", "bullish BTC",
             "bearish BTC", "buying bitcoin", "selling bitcoin"
         ]
 
-        return self._fetch_by_keywords(
+        keyword_posts = self._fetch_by_keywords(
             keywords=keywords,
             start_date=start_date,
             end_date=end_date,
             limit=limit,
         )
+        all_posts.extend(keyword_posts)
+
+        # Deduplicate by post_id
+        seen_ids = set()
+        unique_posts = []
+        for post in all_posts:
+            if post.post_id not in seen_ids:
+                seen_ids.add(post.post_id)
+                unique_posts.append(post)
+
+        logger.info(f"Total unique posts: {len(unique_posts)}")
+        return unique_posts

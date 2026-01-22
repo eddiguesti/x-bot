@@ -350,17 +350,32 @@ class RiskManager:
             # Only close if consensus strongly disagrees
             return True, "consensus_flip"
 
-        # Time-based exit (close after 48 hours if not profitable)
+        # VOLATILITY-ADAPTIVE time-based exit
+        # High volatility = longer hold (72h), Low volatility = shorter (24h)
         if trade.entry_time:
             age_hours = (datetime.utcnow() - trade.entry_time).total_seconds() / 3600
-            if age_hours > 48:
+
+            # Get current volatility to determine exit timing
+            tech_signal = self.technical.analyze(trade.asset)
+            if tech_signal and tech_signal.atr_percent:
+                # Adaptive time limit based on volatility
+                if tech_signal.atr_percent > 5:  # High volatility (>5% daily)
+                    time_limit = 72  # Let it run longer
+                elif tech_signal.atr_percent < 2:  # Low volatility (<2% daily)
+                    time_limit = 24  # Exit faster, rotate capital
+                else:
+                    time_limit = 48  # Normal
+            else:
+                time_limit = 48  # Default
+
+            if age_hours > time_limit:
                 if trade.direction == Direction.LONG:
                     pnl_pct = (current_price - trade.entry_price) / trade.entry_price
                 else:
                     pnl_pct = (trade.entry_price - current_price) / trade.entry_price
 
-                if pnl_pct < 0.01:  # Less than 1% profit after 48h
-                    return True, "time_exit"
+                if pnl_pct < 0.01:  # Less than 1% profit
+                    return True, f"time_exit_{time_limit}h"
 
         return False, ""
 
@@ -371,13 +386,14 @@ class RiskManager:
         atr: Optional[float] = None,
     ) -> float:
         """
-        Calculate trailing stop level.
+        Calculate VOLATILITY-ADAPTIVE trailing stop level.
 
-        Trail at 2x ATR from highest point (for longs) or lowest point (for shorts).
+        - Tight trail (1.5x ATR) in calm markets to lock in profits
+        - Loose trail (2.5x ATR) in choppy markets to avoid whipsaws
         """
-        # Get ATR if not provided
+        # Get ATR and volatility info
+        tech_signal = self.technical.analyze(trade.asset)
         if atr is None:
-            tech_signal = self.technical.analyze(trade.asset)
             atr = tech_signal.atr if tech_signal else 0
 
         if atr <= 0:
@@ -388,7 +404,18 @@ class RiskManager:
             else:
                 return current_price * (1 + trail_pct)
 
-        trail_distance = atr * 2.0
+        # ADAPTIVE MULTIPLIER based on volatility regime
+        if tech_signal and tech_signal.atr_percent:
+            if tech_signal.atr_percent > 5:  # High volatility
+                trail_mult = 2.5  # Looser to avoid whipsaws
+            elif tech_signal.atr_percent < 2:  # Low volatility
+                trail_mult = 1.5  # Tighter to lock profits
+            else:
+                trail_mult = 2.0  # Normal
+        else:
+            trail_mult = 2.0
+
+        trail_distance = atr * trail_mult
 
         if trade.direction == Direction.LONG:
             # For longs, trail below price
