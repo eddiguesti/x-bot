@@ -24,6 +24,7 @@ from src.config import get_settings
 from src.models import Base, Asset, Direction, Signal, Creator, SignalOutcome
 from src.strategies.config import StrategyType
 from src.strategies.multi_runner import MultiStrategyRunner
+from src.strategies.backtester import HistoricalBacktester
 from src.data_ingestion import XClient
 from src.signal_extraction import SignalExtractor
 
@@ -117,105 +118,6 @@ def collect_signals(session, settings, hours_back: int = 24, limit: int = 200):
         return 0
 
 
-def generate_mock_history(session, num_signals: int = 500, days_back: int = 60):
-    """
-    Generate mock historical signals for backtesting.
-
-    Creates realistic-looking signals from fake traders with various
-    accuracy levels to test the strategy comparison.
-    """
-    import random
-
-    logger.info(f"Generating {num_signals} mock historical signals over {days_back} days...")
-
-    # Check if we already have signals
-    existing_count = session.query(Signal).count()
-    if existing_count > 100:
-        logger.info(f"Already have {existing_count} signals, skipping mock generation")
-        return 0
-
-    # Create mock traders with different skill levels
-    mock_traders = [
-        ("CryptoWhale", 0.65),     # Good trader - 65% accuracy
-        ("BTCMaxi", 0.58),          # Decent trader
-        ("AltCoinKing", 0.52),      # Average
-        ("MoonBoi", 0.45),          # Below average
-        ("DiamondHands", 0.60),     # Good
-        ("DeFiDegen", 0.55),        # Decent
-        ("ChartMaster", 0.62),      # Good
-        ("FOMOTrader", 0.42),       # Bad - often wrong
-        ("SmartMoney", 0.68),       # Very good
-        ("RetailAndy", 0.48),       # Below average
-    ]
-
-    assets = [Asset.BTC, Asset.ETH, Asset.SOL, Asset.DOGE, Asset.XRP, Asset.ADA, Asset.LINK]
-
-    signals_created = 0
-    now = datetime.now(timezone.utc)
-
-    for username, accuracy in mock_traders:
-        # Get or create creator
-        creator = session.query(Creator).filter(Creator.username == username).first()
-        if not creator:
-            creator = Creator(username=username, display_name=username)
-            session.add(creator)
-            session.flush()
-
-        # Generate signals for this trader
-        num_for_trader = num_signals // len(mock_traders)
-
-        for i in range(num_for_trader):
-            # Random time in the past
-            hours_ago = random.randint(1, days_back * 24)
-            posted_at = now - timedelta(hours=hours_ago)
-
-            # Random asset and direction
-            asset = random.choice(assets)
-            direction = random.choice([Direction.LONG, Direction.SHORT])
-
-            # Confidence based on trader skill + randomness
-            base_conf = accuracy * 0.8 + random.uniform(0, 0.3)
-            confidence = min(0.95, max(0.3, base_conf))
-
-            # Determine outcome based on trader's accuracy
-            is_correct = random.random() < accuracy
-            outcome = SignalOutcome.CORRECT if is_correct else SignalOutcome.INCORRECT
-
-            # Mock price change
-            if is_correct:
-                price_change = random.uniform(1.5, 8.0) if direction == Direction.LONG else random.uniform(-8.0, -1.5)
-            else:
-                price_change = random.uniform(-5.0, -0.5) if direction == Direction.LONG else random.uniform(0.5, 5.0)
-
-            signal = Signal(
-                creator_id=creator.id,
-                post_id=f"mock_{username}_{i}_{int(posted_at.timestamp())}",
-                post_text=f"Mock signal: {direction.value.upper()} ${asset.value}",
-                posted_at=posted_at,
-                asset=asset,
-                direction=direction,
-                confidence=confidence,
-                outcome=outcome,
-                evaluated_at=posted_at + timedelta(hours=24),
-                price_change_percent=price_change,
-            )
-            session.add(signal)
-            signals_created += 1
-
-        # Update creator stats
-        creator_signals = session.query(Signal).filter(
-            Signal.creator_id == creator.id,
-            Signal.outcome != None
-        ).all()
-
-        creator.total_predictions = len(creator_signals)
-        creator.correct_predictions = sum(1 for s in creator_signals if s.outcome == SignalOutcome.CORRECT)
-
-    session.commit()
-    logger.info(f"Created {signals_created} mock historical signals")
-    return signals_created
-
-
 def run_trading_loop(interval_minutes: int = 30):
     """Background thread that runs signal collection + trading cycles."""
     logger.info(f"Starting trading loop (interval: {interval_minutes} min)")
@@ -223,11 +125,30 @@ def run_trading_loop(interval_minutes: int = 30):
     settings = get_settings()
     session, engine = get_db_session()
 
-    # Generate mock history on first run if no signals exist
+    # Run historical backtest on first run if no trades exist
+    from src.models import Trade
+    trade_count = session.query(Trade).count()
     signal_count = session.query(Signal).count()
-    if signal_count < 50:
-        logger.info("No historical signals found - generating mock data for backtesting...")
-        generate_mock_history(session, num_signals=500, days_back=60)
+
+    if trade_count < 10:
+        logger.info("=" * 60)
+        logger.info("RUNNING HISTORICAL BACKTEST")
+        logger.info("=" * 60)
+        logger.info("Fetching real signals and simulating trades...")
+
+        backtester = HistoricalBacktester(
+            settings=settings,
+            session=session,
+            initial_balance=10000.0,
+        )
+
+        # Backtest as far back as the API allows (typically 7-14 days)
+        backtest_days = int(os.getenv("BACKTEST_DAYS", 14))
+        backtester.run_backtest(days_back=backtest_days)
+
+        logger.info("=" * 60)
+        logger.info("BACKTEST COMPLETE - Starting live trading")
+        logger.info("=" * 60)
 
     runner = MultiStrategyRunner(
         settings=settings,
