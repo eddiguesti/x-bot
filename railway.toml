@@ -2,5 +2,5 @@
 builder = "nixpacks"
 
 [deploy]
-startCommand = "python run_strategies.py --continuous --interval 30"
+startCommand = "python main.py"
 restartPolicyType = "always"
