@@ -1212,6 +1212,40 @@ async def debug():
         session.close()
 
 
+@app.get("/test-api")
+async def test_api():
+    """Test the Macrocosmos API connection."""
+    import traceback
+    from src.config import get_settings
+    from src.data_ingestion import XClient
+
+    try:
+        settings = get_settings()
+        api_key = settings.macrocosmos_api_key
+
+        if not api_key:
+            return {"error": "MACROCOSMOS_API_KEY not set", "key_present": False}
+
+        # Try to fetch a small sample
+        x_client = XClient(settings)
+        posts = x_client.fetch_trading_signals(limit=5, hours_back=24)
+
+        return {
+            "success": True,
+            "key_present": True,
+            "key_preview": api_key[:8] + "..." if len(api_key) > 8 else "***",
+            "posts_fetched": len(posts),
+            "sample": [{"username": p.username, "text": p.text[:100]} for p in posts[:2]] if posts else []
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "key_present": bool(api_key) if 'api_key' in dir() else False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }
+
+
 if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv("PORT", 8080))
