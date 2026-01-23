@@ -1220,11 +1220,23 @@ async def test_api():
     from src.data_ingestion import XClient
 
     try:
+        # Check raw env var first
+        raw_key = os.getenv("MACROCOSMOS_API_KEY", "")
         settings = get_settings()
         api_key = settings.macrocosmos_api_key
 
-        if not api_key:
-            return {"error": "MACROCOSMOS_API_KEY not set", "key_present": False}
+        if not api_key and not raw_key:
+            return {
+                "error": "MACROCOSMOS_API_KEY not set",
+                "key_present": False,
+                "raw_env": bool(raw_key),
+                "settings_key": bool(api_key),
+                "all_env_keys": [k for k in os.environ.keys() if "MACRO" in k.upper() or "API" in k.upper()]
+            }
+
+        # Use raw key if settings didn't pick it up
+        if not api_key and raw_key:
+            api_key = raw_key
 
         # Try to fetch a small sample
         x_client = XClient(settings)
