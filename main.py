@@ -122,34 +122,53 @@ def run_trading_loop(interval_minutes: int = 30):
     """Background thread that runs signal collection + trading cycles."""
     logger.info(f"Starting trading loop (interval: {interval_minutes} min)")
 
-    settings = get_settings()
-    session, engine = get_db_session()
+    try:
+        settings = get_settings()
+        session, engine = get_db_session()
+    except Exception as e:
+        logger.error(f"Failed to initialize: {e}", exc_info=True)
+        return
 
-    # Run historical backtest on first run if no trades exist
+    # FIRST: Create the runner to ensure portfolios exist
+    logger.info("Initializing strategy portfolios...")
+    try:
+        runner = MultiStrategyRunner(
+            settings=settings,
+            session=session,
+            initial_balance=10000.0,
+            strategies=list(StrategyType),
+        )
+        logger.info("Portfolios initialized successfully")
+    except Exception as e:
+        logger.error(f"Failed to create strategy runner: {e}", exc_info=True)
+        return
+
+    # THEN: Try historical backtest (optional - don't fail if it doesn't work)
     from src.models import Trade
     trade_count = session.query(Trade).count()
-    signal_count = session.query(Signal).count()
 
     if trade_count < 10:
         logger.info("=" * 60)
         logger.info("RUNNING HISTORICAL BACKTEST")
         logger.info("=" * 60)
-        logger.info("Fetching real signals and simulating trades...")
 
-        backtester = HistoricalBacktester(
-            settings=settings,
-            session=session,
-            initial_balance=10000.0,
-        )
-
-        # Backtest as far back as the API allows (typically 7-14 days)
-        backtest_days = int(os.getenv("BACKTEST_DAYS", 14))
-        backtester.run_backtest(days_back=backtest_days)
+        try:
+            backtester = HistoricalBacktester(
+                settings=settings,
+                session=session,
+                initial_balance=10000.0,
+            )
+            backtest_days = int(os.getenv("BACKTEST_DAYS", 7))
+            backtester.run_backtest(days_back=backtest_days)
+            logger.info("Backtest complete")
+        except Exception as e:
+            logger.warning(f"Backtest failed (continuing anyway): {e}")
 
         logger.info("=" * 60)
-        logger.info("BACKTEST COMPLETE - Starting live trading")
+        logger.info("Starting live trading")
         logger.info("=" * 60)
 
+    # Re-initialize runner to pick up any backtest data
     runner = MultiStrategyRunner(
         settings=settings,
         session=session,
