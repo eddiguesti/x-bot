@@ -253,8 +253,11 @@ class XClient:
 
     def __init__(self, settings: Settings):
         self.settings = settings
+        # Get API key - try settings first, then env var directly (Railway fix)
+        import os
+        api_key = settings.macrocosmos_api_key or os.getenv("MACROCOSMOS_API_KEY", "")
         self.client = mc.Sn13Client(
-            api_key=settings.macrocosmos_api_key,
+            api_key=api_key,
             app_name="crypto_consensus"
         )
         self.raw_data_dir = settings.raw_data_dir
