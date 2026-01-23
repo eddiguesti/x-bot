@@ -1190,6 +1190,28 @@ async def health():
     return {"status": "ok", "timestamp": datetime.utcnow().isoformat()}
 
 
+@app.get("/debug")
+async def debug():
+    """Debug endpoint to check database state."""
+    session = get_session()
+    try:
+        portfolios = session.query(Portfolio).all()
+        trades = session.query(Trade).count()
+        signals = session.query(Signal).count()
+        creators = session.query(Creator).count()
+
+        return {
+            "db_path": str(DB_PATH),
+            "db_exists": DB_PATH.exists(),
+            "portfolios": [{"name": p.name, "balance": p.current_balance, "trades": p.total_trades} for p in portfolios],
+            "total_trades": trades,
+            "total_signals": signals,
+            "total_creators": creators,
+        }
+    finally:
+        session.close()
+
+
 if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv("PORT", 8080))
