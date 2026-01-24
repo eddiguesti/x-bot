@@ -19,6 +19,18 @@ from src.models import Base, Trade, TradeStatus, Portfolio, Asset, Direction, Si
 
 app = FastAPI(title="Crypto Trading Dashboard")
 
+# Global exception handler
+from fastapi import HTTPException
+from fastapi.responses import PlainTextResponse
+import traceback as tb
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request, exc):
+    return PlainTextResponse(
+        content=f"Error: {exc}\n\n{tb.format_exc()}",
+        status_code=500
+    )
+
 DATA_DIR = Path(os.getenv("DATA_DIR", "data"))
 DB_PATH = DATA_DIR / "strategies.db"
 
