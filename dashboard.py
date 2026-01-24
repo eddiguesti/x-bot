@@ -1210,6 +1210,33 @@ async def health():
     return {"status": "ok", "timestamp": datetime.utcnow().isoformat()}
 
 
+@app.get("/simple")
+async def simple_dashboard():
+    """Minimal dashboard for debugging."""
+    session = get_session()
+    try:
+        stats = {}
+        for s in ["social_pure", "technical_strict", "balanced"]:
+            data = get_strategy_stats(session, s)
+            if data:
+                stats[s] = {
+                    "balance": data["balance"],
+                    "trades": data["total_trades"],
+                    "return": data["total_return"]
+                }
+
+        html = "<html><body><h1>Simple Dashboard</h1>"
+        for name, s in stats.items():
+            html += f"<p><b>{name}</b>: ${s['balance']:.2f} | {s['trades']} trades | {s['return']:.2f}%</p>"
+        html += "</body></html>"
+        return HTMLResponse(content=html)
+    except Exception as e:
+        import traceback
+        return HTMLResponse(content=f"<pre>Error: {e}\n{traceback.format_exc()}</pre>")
+    finally:
+        session.close()
+
+
 @app.get("/debug")
 async def debug():
     """Debug endpoint to check database state."""
