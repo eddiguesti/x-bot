@@ -1030,14 +1030,18 @@ async def _render_dashboard():
         dir_class = "long" if trade.direction == Direction.LONG else "short"
         strategy_color = colors.get(strategy, ("", "#ffffff"))[1]
 
+        exit_price = trade.exit_price if trade.exit_price else 0
+        pnl_pct = trade.pnl_percent if trade.pnl_percent else 0
+        entry_price = trade.entry_price if trade.entry_price else 0
+
         html += f"""
                     <tr>
                         <td><span class="trade-strategy" style="border-left: 3px solid {strategy_color};">{strategy.replace("_", " ").title()}</span></td>
                         <td><span class="trade-asset">{trade.asset.value}</span></td>
                         <td><span class="trade-direction {dir_class}">{trade.direction.value.upper()}</span></td>
-                        <td>${trade.entry_price:,.2f}</td>
-                        <td>${trade.exit_price:,.2f if trade.exit_price else 0}</td>
-                        <td><span class="trade-pnl {pnl_class}">{trade.pnl_percent:+.2f}%</span></td>
+                        <td>${entry_price:,.2f}</td>
+                        <td>${exit_price:,.2f}</td>
+                        <td><span class="trade-pnl {pnl_class}">{pnl_pct:+.2f}%</span></td>
                         <td style="color: var(--text-muted);">{trade.exit_time.strftime("%m/%d %H:%M") if trade.exit_time else "-"}</td>
                     </tr>
         """
