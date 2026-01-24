@@ -1233,7 +1233,7 @@ async def test_api():
                 "settings_key": bool(api_key),
                 "all_env_keys": [k for k in os.environ.keys() if "MACRO" in k.upper() or "API" in k.upper()],
                 "all_env_count": len(os.environ),
-                "sample_env_keys": list(os.environ.keys())[:20]
+                "all_env_vars": sorted(list(os.environ.keys()))
             }
 
         # Use raw key if settings didn't pick it up
