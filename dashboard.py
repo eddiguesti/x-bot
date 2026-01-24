@@ -139,6 +139,14 @@ def get_system_stats(session) -> dict:
 
 @app.get("/", response_class=HTMLResponse)
 async def dashboard():
+    try:
+        return await _render_dashboard()
+    except Exception as e:
+        import traceback
+        return HTMLResponse(content=f"<pre>Error: {e}\n\n{traceback.format_exc()}</pre>", status_code=500)
+
+
+async def _render_dashboard():
     session = get_session()
 
     strategies = ["social_pure", "technical_strict", "balanced"]
