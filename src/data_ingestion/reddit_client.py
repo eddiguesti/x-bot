@@ -50,28 +50,59 @@ class RedditClient:
     No separate Reddit API credentials needed.
     """
 
-    # Crypto-related keywords for Reddit search (183 subreddits worth of topics)
+    # Crypto-related keywords for Reddit search (expanded coverage)
     CRYPTO_KEYWORDS = [
-        # Major coins
+        # ========== MAJOR COINS ==========
         "bitcoin", "btc", "ethereum", "eth", "solana", "sol",
         "cardano", "ada", "ripple", "xrp", "dogecoin", "doge",
         "avalanche", "avax", "polkadot", "dot", "chainlink", "link",
+        "litecoin", "ltc", "bnb", "binance coin",
 
-        # Trading terms
+        # ========== TRADING TERMS ==========
         "crypto trading", "long btc", "short btc", "bullish crypto",
         "bearish crypto", "crypto buy", "crypto sell", "altcoin",
+        "altseason", "alt season", "bitcoin dominance", "btc dominance",
+        "crypto portfolio", "crypto gains", "crypto losses",
 
-        # DeFi
+        # ========== DEFI ==========
         "defi", "uniswap", "aave", "yield farming", "liquidity",
+        "curve finance", "maker dao", "lido", "rocket pool",
+        "compound", "sushiswap", "pancakeswap", "gmx", "dydx",
+        "hyperliquid", "pendle", "eigenlayer", "restaking",
 
-        # Memecoins
+        # ========== MEMECOINS ==========
         "shib", "pepe", "bonk", "wif", "memecoin", "meme coin",
+        "floki", "degen", "brett", "popcat", "mog", "trump coin",
+        "pnut", "goat", "act", "fartcoin", "ai16z",
 
-        # L2s and new chains
+        # ========== L2s AND NEW CHAINS ==========
         "arbitrum", "optimism", "base", "sui", "sei", "celestia",
+        "starknet", "zksync", "scroll", "linea", "manta", "blast",
+        "mantle", "mode", "zora", "taiko",
 
-        # AI coins
+        # ========== AI & AGENTS ==========
         "bittensor", "tao", "fetch ai", "render", "worldcoin",
+        "ocean protocol", "singularitynet", "akash", "nosana",
+        "ai agent", "ai crypto", "virtuals protocol", "zerebro",
+        "truth terminal", "aixbt", "griffain",
+
+        # ========== SOLANA ECOSYSTEM ==========
+        "solana defi", "jupiter exchange", "raydium", "orca",
+        "marinade", "jito", "tensor", "magic eden solana",
+        "pyth network", "wormhole",
+
+        # ========== GAMING & NFT ==========
+        "crypto gaming", "gamefi", "play to earn", "axie",
+        "immutable", "gala", "sandbox", "decentraland",
+
+        # ========== INFRASTRUCTURE ==========
+        "layer zero", "cosmos", "atom", "thorchain",
+        "injective", "sei network", "aptos", "near protocol",
+
+        # ========== NARRATIVES ==========
+        "rwa", "real world assets", "tokenization",
+        "depin", "decentralized physical", "helium", "hivemapper",
+        "modular blockchain", "data availability",
     ]
 
     # Expanded trading signal keywords
@@ -101,8 +132,9 @@ class RedditClient:
         "burn", "buyback", "staking",
     ]
 
-    # Asset keywords for filtering
+    # Asset keywords for filtering (expanded)
     ASSET_KEYWORDS = {
+        # ========== MAJOR COINS ==========
         "BTC": ["btc", "bitcoin", "sats"],
         "ETH": ["eth", "ethereum", "ether"],
         "SOL": ["sol", "solana"],
@@ -112,33 +144,75 @@ class RedditClient:
         "AVAX": ["avax", "avalanche"],
         "LINK": ["link", "chainlink"],
         "DOT": ["dot", "polkadot"],
-        "SHIB": ["shib", "shiba"],
         "LTC": ["ltc", "litecoin"],
-        "UNI": ["uni", "uniswap"],
-        "ATOM": ["atom", "cosmos"],
-        "ARB": ["arb", "arbitrum"],
-        "OP": ["op", "optimism"],
-        "APT": ["apt", "aptos"],
-        "NEAR": ["near"],
-        "INJ": ["inj", "injective"],
-        "TAO": ["tao", "bittensor"],
-        "MATIC": ["matic", "polygon"],
         "BNB": ["bnb", "binance"],
+
+        # ========== MEMECOINS ==========
+        "SHIB": ["shib", "shiba"],
         "PEPE": ["pepe"],
         "WIF": ["wif", "dogwifhat"],
         "BONK": ["bonk"],
+        "FLOKI": ["floki"],
+
+        # ========== L2s & NEW CHAINS ==========
+        "ARB": ["arb", "arbitrum"],
+        "OP": ["op", "optimism"],
+        "MATIC": ["matic", "polygon"],
         "SUI": ["sui"],
         "SEI": ["sei"],
+        "APT": ["apt", "aptos"],
+        "NEAR": ["near"],
         "TIA": ["tia", "celestia"],
+        "INJ": ["inj", "injective"],
+        "FTM": ["ftm", "fantom"],
+
+        # ========== DEFI ==========
+        "UNI": ["uni", "uniswap"],
         "AAVE": ["aave"],
         "MKR": ["mkr", "maker"],
-        "XMR": ["xmr", "monero"],
+        "CRV": ["crv", "curve"],
+        "LDO": ["ldo", "lido"],
+        "PENDLE": ["pendle"],
+        "GMX": ["gmx"],
+        "DYDX": ["dydx"],
+
+        # ========== AI & DATA ==========
+        "TAO": ["tao", "bittensor"],
         "FET": ["fet", "fetch"],
         "RNDR": ["rndr", "render"],
         "GRT": ["grt", "graph"],
-        "HBAR": ["hbar", "hedera"],
-        "FTM": ["ftm", "fantom"],
+        "OCEAN": ["ocean"],
+        "AGIX": ["agix", "singularity"],
+        "AKT": ["akt", "akash"],
+        "WLD": ["wld", "worldcoin"],
+
+        # ========== SOLANA ECOSYSTEM ==========
         "JUP": ["jup", "jupiter"],
+        "JTO": ["jto", "jito"],
+        "PYTH": ["pyth"],
+        "RAY": ["ray", "raydium"],
+        "ORCA": ["orca"],
+        "MNDE": ["mnde", "marinade"],
+
+        # ========== INFRASTRUCTURE ==========
+        "ATOM": ["atom", "cosmos"],
+        "HBAR": ["hbar", "hedera"],
+        "QNT": ["qnt", "quant"],
+        "VET": ["vet", "vechain"],
+        "FIL": ["fil", "filecoin"],
+        "AR": ["ar", "arweave"],
+        "STX": ["stx", "stacks"],
+
+        # ========== PRIVACY ==========
+        "XMR": ["xmr", "monero"],
+        "ZEC": ["zec", "zcash"],
+
+        # ========== GAMING ==========
+        "IMX": ["imx", "immutable"],
+        "GALA": ["gala"],
+        "AXS": ["axs", "axie"],
+        "SAND": ["sand", "sandbox"],
+        "MANA": ["mana", "decentraland"],
     }
 
     # Rate limiting
