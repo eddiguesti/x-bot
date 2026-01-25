@@ -40,9 +40,9 @@ class YouTubePost:
 class YouTubeClient:
     """Client for fetching YouTube crypto content via Macrocosmos SN13 API."""
 
-    # Top crypto YouTube channels to monitor
+    # Top crypto YouTube channels to monitor (50+ channels)
     CRYPTO_CHANNELS = [
-        # Mega influencers (1M+ subscribers)
+        # ========== MEGA INFLUENCERS (1M+ subscribers) ==========
         "BitBoy Crypto",
         "Coin Bureau",
         "DataDash",
@@ -53,32 +53,71 @@ class YouTubeClient:
         "Benjamin Cowen",
         "Crypto Banter",
         "Ran Neuner",
+        "InvestAnswers",
+        "Crypto Tips",
+        "EllioTrades Crypto",
 
-        # Technical analysis
+        # ========== TECHNICAL ANALYSIS ==========
         "Crypto Crew University",
         "Sheldon The Sniper",
         "Michaël van de Poppe",
         "Crypto Jebb",
         "The Crypto Lark",
+        "Trader University",
+        "The Chart Guys",
+        "Crypto Capital Venture",
+        "Rekt Capital",
+        "Bob Loukas",
 
-        # News & education
+        # ========== NEWS & EDUCATION ==========
         "Bankless",
         "The Defiant",
         "Unchained Podcast",
         "Real Vision",
         "Anthony Pompliano",
+        "Blockworks",
+        "Messari",
+        "a]16z crypto",
+        "Delphi Digital",
 
-        # DeFi focused
+        # ========== DEFI & TECHNICAL ==========
         "Finematics",
         "Whiteboard Crypto",
         "DeFi Dad",
+        "Patrick Collins",
+        "Smart Contract Programmer",
+        "Eat The Blocks",
 
-        # Trading focused
+        # ========== TRADING FOCUSED ==========
         "Crypto Face",
         "Davincij15",
         "MMCrypto",
         "Crypto Zombie",
         "Alessio Rastani",
+        "CryptosRUs",
+        "Crypto Jebb",
+        "Digital Asset News",
+        "Crypto Michael",
+
+        # ========== SOLANA & ALT L1s ==========
+        "SolanaFloor",
+        "Solana",
+
+        # ========== MACRO & INSTITUTIONAL ==========
+        "Raoul Pal The Journey Man",
+        "Willy Woo",
+        "Plan B",
+        "Preston Pysh",
+
+        # ========== NEWS CHANNELS ==========
+        "CoinDesk",
+        "Cointelegraph",
+        "Bitcoin Magazine",
+        "The Block",
+
+        # ========== AI & NEW NARRATIVES ==========
+        "Matthew Berman",
+        "AI Explained",
     ]
 
     # Trading keywords to filter relevant content

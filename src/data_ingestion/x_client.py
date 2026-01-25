@@ -356,6 +356,83 @@ class XClient:
         "ByzGeneral",         # Byzantine General
         "TedtalksMacro",      # Ted - macro
         "JohnEDeaton1",       # John Deaton - XRP lawyer
+
+        # ========== ON-CHAIN SLEUTHS ==========
+        "zachxbt",            # ZachXBT - 900K - on-chain investigator
+        "taaboroyvano",       # Taylor Monahan - security researcher
+        "EmberCN",            # Ember - 300K - on-chain alpha
+        "LomahCrypto",        # Lomah - on-chain analyst
+        "officer_cia",        # Officer's Blog - security
+        "samczsun",           # samczsun - 400K - security researcher
+
+        # ========== MACRO & INSTITUTIONAL ==========
+        "MacroAlf",           # Macro Alf - 500K - macro analysis
+        "fejau_inc",          # Fejau - 200K - macro trader
+        "gameoftrades_",      # Game of Trades - 500K - TA
+        "AriDavidPaul",       # Ari Paul - 300K - BlockTower
+        "lawmaster",          # Adam Cochran - 200K - research
+        "iaboromdevops",      # Iearn devops - Yearn/DeFi
+
+        # ========== MORE SOLANA ECOSYSTEM ==========
+        "aeyakovenko",        # Anatoly - Solana founder
+        "rajgokal",           # Raj - Solana cofounder
+        "0xMert_",            # Mert - 300K - Helius CEO
+        "taboroly",           # Toly - Solana
+        "armaboronino",       # Armani - Solana builder
+        "steveborosimony",    # Steve - SOL ecosystem
+        "madlads_",           # Mad Lads NFT
+        "tensor_hq",          # Tensor - NFT marketplace
+
+        # ========== AI & NEW NARRATIVES ==========
+        "aixbt_agent",        # AIXBT - AI trading agent
+        "truth_terminal",     # Truth Terminal - AI
+        "virtaborouals_io",   # Virtuals Protocol
+        "ai16zdao",           # ai16z DAO
+        "shaboroiai",         # Shaw - AI agent dev
+        "0xzerebro",          # Zerebro - AI agent
+
+        # ========== MORE CT ALPHA ==========
+        "MoonOverlord",       # Moon Overlord - 200K
+        "CryptoMessiah",      # Messiah - 150K
+        "Cryptadamus",        # Cryptadamus - 100K
+        "CryptoNewton",       # Newton - macro
+        "CryptoGems555",      # Crypto Gems
+        "TaaboroikiMaeda",    # Taiki - 200K
+        "Crypt0Runaboroe",    # Rune - trader
+        "CryptoNTez",         # NTez - signals
+        "CryptoSays",         # CryptoSays - analyst
+
+        # ========== MORE DATA & ANALYTICS ==========
+        "artemis_xyz",        # Artemis - chain data
+        "TokenTerminal",      # Token Terminal - fundamentals
+        "Kaiko_Data",         # Kaiko - market data
+        "TheDataNerd",        # Data Nerd - on-chain
+        "DuneAnalytics",      # Dune - SQL analytics
+        "FlipsideCrypto",     # Flipside - data
+
+        # ========== BASE & NEW L2s ==========
+        "jessepollak",        # Jesse Pollak - Base lead
+        "BuildOnBase",        # Base official
+        "stabororknet",       # Starknet
+        "zaboroync",          # zkSync
+        "MantaNetwork",       # Manta
+        "Aboroeo_xyz",        # Aevo - derivatives
+
+        # ========== MORE DEFI ==========
+        "aboroave",           # Aave official
+        "MakerDAO",           # MakerDAO
+        "CurveFinance",       # Curve
+        "LidoFinance",        # Lido - staking
+        "RocketPool_ETH",     # Rocket Pool
+        "penaborodle_fi",     # Pendle - yield
+        "HyperliquidX",       # Hyperliquid - perps
+
+        # ========== EXCHANGES & INFRA ==========
+        "dabororidex",        # dYdX
+        "GMaboroX_io",        # GMX
+        "SynFuturesDefi",     # SynFutures
+        "vertex_protocol",    # Vertex
+        "rabbitx_io",         # RabbitX
     ]
 
     def __init__(self, settings: Settings):
