@@ -23,11 +23,11 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from ..config import Settings
-from ..models import Asset, Direction, ConsensusAction, Trade, TradeStatus, Portfolio
+from ..models import Asset, Direction, ConsensusAction, Trade, TradeStatus, Portfolio, SignalSource
 from ..consensus.enhanced_engine import EnhancedConsensusEngine
 from ..analysis.technical import TechnicalAnalyzer, TrendDirection
 from ..data_ingestion.price_client import PriceClient
-from .config import StrategyConfig, StrategyType, get_strategy, STRATEGIES
+from .config import StrategyConfig, StrategyType, DataSource, get_strategy, STRATEGIES
 
 logger = logging.getLogger(__name__)
 
@@ -268,8 +268,9 @@ class MultiStrategyRunner:
         # Calculate position size
         base_pct = config.risk.base_position_pct
 
-        # Conviction adjustment
-        conviction = min(1.0, consensus_confidence * vote_ratio * 1.5)
+        # Conviction calculation using geometric mean (naturally bounded 0-1, no magic numbers)
+        # Geometric mean ensures both confidence AND vote agreement must be high
+        conviction = (consensus_confidence * vote_ratio) ** 0.5
         if conviction < config.risk.min_conviction:
             result["reasons"].append(f"Low conviction ({conviction:.0%} < {config.risk.min_conviction:.0%})")
             return result
@@ -483,6 +484,20 @@ class MultiStrategyRunner:
 
         return to_close
 
+    def _get_sources_for_data_source(self, data_source: DataSource) -> list[SignalSource]:
+        """Map strategy data source config to signal sources."""
+        if data_source == DataSource.TWITTER:
+            return [SignalSource.TWITTER]
+        elif data_source == DataSource.REDDIT:
+            return [SignalSource.REDDIT]
+        elif data_source == DataSource.YOUTUBE:
+            return [SignalSource.YOUTUBE]
+        elif data_source == DataSource.MIXED:
+            return [SignalSource.TWITTER, SignalSource.REDDIT]
+        elif data_source == DataSource.ALL:
+            return [SignalSource.TWITTER, SignalSource.REDDIT, SignalSource.YOUTUBE]
+        return [SignalSource.TWITTER]  # Default
+
     def run_cycle(self, assets: list[Asset] = None) -> dict[StrategyType, list[str]]:
         """
         Run one trading cycle for all strategies.
@@ -494,16 +509,26 @@ class MultiStrategyRunner:
 
         results = {st: [] for st in self.strategies}
 
-        # Get consensus for each asset
-        consensus_map = {}
-        for asset in assets:
-            try:
-                consensus = self.consensus_engine.calculate_consensus(
-                    self.session, asset, lookback_hours=24, save_snapshot=False
-                )
-                consensus_map[asset] = consensus
-            except Exception as e:
-                logger.warning(f"Failed to get consensus for {asset.value}: {e}")
+        # Pre-calculate consensus for each data source type (to avoid redundant queries)
+        consensus_by_source: dict[tuple, dict[Asset, any]] = {}
+
+        for strategy_type, strategy in self.strategies.items():
+            # Get the signal sources for this strategy
+            sources = self._get_sources_for_data_source(strategy.config.data_source)
+            sources_key = tuple(sorted(s.value for s in sources))
+
+            # Calculate consensus if not already done for this source combo
+            if sources_key not in consensus_by_source:
+                consensus_by_source[sources_key] = {}
+                for asset in assets:
+                    try:
+                        consensus = self.consensus_engine.calculate_consensus(
+                            self.session, asset, lookback_hours=24,
+                            save_snapshot=False, sources=sources
+                        )
+                        consensus_by_source[sources_key][asset] = consensus
+                    except Exception as e:
+                        logger.warning(f"Failed to get consensus for {asset.value}: {e}")
 
         for strategy_type, strategy in self.strategies.items():
             # Check exits first
@@ -511,6 +536,11 @@ class MultiStrategyRunner:
             for trade, reason in exits:
                 self.close_position(strategy, trade, reason)
                 results[strategy_type].append(f"CLOSE {trade.asset.value}: {reason}")
+
+            # Get the consensus map for this strategy's data source
+            sources = self._get_sources_for_data_source(strategy.config.data_source)
+            sources_key = tuple(sorted(s.value for s in sources))
+            consensus_map = consensus_by_source.get(sources_key, {})
 
             # Evaluate new trades
             for asset in assets:
@@ -524,7 +554,7 @@ class MultiStrategyRunner:
                 eval_result = self.evaluate_trade_for_strategy(
                     strategy,
                     asset,
-                    consensus.score,
+                    consensus.weighted_score,
                     consensus.confidence,
                     consensus.long_votes,
                     consensus.short_votes,
@@ -536,7 +566,7 @@ class MultiStrategyRunner:
                         asset,
                         eval_result["direction"],
                         eval_result["position_pct"],
-                        consensus.score,
+                        consensus.weighted_score,
                         consensus.confidence,
                     )
                     if trade:
@@ -567,68 +597,54 @@ class MultiStrategyRunner:
         """Print performance comparison across all strategies."""
         performances = self.get_performance_summary()
 
-        print("\n" + "=" * 90)
+        if not performances:
+            print("No strategies to compare")
+            return
+
+        # Group strategies by data source
+        twitter_strats = [st for st in performances if st.value in ("social_pure", "technical_strict", "balanced")]
+        reddit_strats = [st for st in performances if "reddit_" in st.value]
+        mixed_strats = [st for st in performances if "mixed_" in st.value]
+        youtube_strats = [st for st in performances if "youtube_" in st.value]
+        all_strats = [st for st in performances if "all_" in st.value]
+
+        print("\n" + "=" * 100)
         print("STRATEGY PERFORMANCE COMPARISON")
-        print("=" * 90)
+        print("=" * 100)
 
-        # Header
-        headers = ["Metric", "Social Pure", "Technical", "Balanced", "Winner"]
-        col_widths = [20, 18, 18, 18, 12]
-        print(" | ".join(h.ljust(w) for h, w in zip(headers, col_widths)))
-        print("-" * 90)
+        # Print each group
+        for group_name, group_strats in [
+            ("TWITTER (X)", twitter_strats),
+            ("REDDIT", reddit_strats),
+            ("YOUTUBE", youtube_strats),
+            ("MIXED (Twitter + Reddit)", mixed_strats),
+            ("ALL (Twitter + Reddit + YouTube)", all_strats)
+        ]:
+            if not group_strats:
+                continue
 
-        # Get performances in order
-        social = performances.get(StrategyType.SOCIAL_PURE)
-        tech = performances.get(StrategyType.TECHNICAL_STRICT)
-        balanced = performances.get(StrategyType.BALANCED)
+            print(f"\n--- {group_name} ---")
+            print(f"{'Strategy':<25} {'Balance':>12} {'Return':>10} {'Trades':>8} {'Win Rate':>10} {'Drawdown':>10}")
+            print("-" * 80)
 
-        def winner(vals, higher_better=True):
-            if not all(v is not None for v in vals):
-                return "N/A"
-            if higher_better:
-                idx = vals.index(max(vals))
-            else:
-                idx = vals.index(min(vals))
-            return ["Social", "Tech", "Balanced"][idx]
+            for st in group_strats:
+                perf = performances[st]
+                open_pos = len(self.strategies[st].open_positions) if st in self.strategies else 0
+                name = st.value.replace("_", " ").title()
+                print(
+                    f"{name:<25} "
+                    f"${perf.current_balance:>10,.0f} "
+                    f"{perf.total_return_pct:>+9.2f}% "
+                    f"{perf.total_trades:>8} "
+                    f"{perf.win_rate:>9.1%} "
+                    f"{perf.max_drawdown:>9.1%}"
+                )
 
-        # Metrics rows
-        if social and tech and balanced:
-            metrics = [
-                ("Balance", f"${social.current_balance:,.0f}", f"${tech.current_balance:,.0f}",
-                 f"${balanced.current_balance:,.0f}",
-                 winner([social.current_balance, tech.current_balance, balanced.current_balance])),
-                ("Total Return", f"{social.total_return_pct:+.2f}%", f"{tech.total_return_pct:+.2f}%",
-                 f"{balanced.total_return_pct:+.2f}%",
-                 winner([social.total_return_pct, tech.total_return_pct, balanced.total_return_pct])),
-                ("Total PnL", f"${social.total_pnl:+,.0f}", f"${tech.total_pnl:+,.0f}",
-                 f"${balanced.total_pnl:+,.0f}",
-                 winner([social.total_pnl, tech.total_pnl, balanced.total_pnl])),
-                ("Total Trades", str(social.total_trades), str(tech.total_trades),
-                 str(balanced.total_trades),
-                 winner([social.total_trades, tech.total_trades, balanced.total_trades])),
-                ("Win Rate", f"{social.win_rate:.1%}", f"{tech.win_rate:.1%}",
-                 f"{balanced.win_rate:.1%}",
-                 winner([social.win_rate, tech.win_rate, balanced.win_rate])),
-                ("Max Drawdown", f"{social.max_drawdown:.1%}", f"{tech.max_drawdown:.1%}",
-                 f"{balanced.max_drawdown:.1%}",
-                 winner([social.max_drawdown, tech.max_drawdown, balanced.max_drawdown], higher_better=False)),
-                ("Open Positions", str(len(self.strategies[StrategyType.SOCIAL_PURE].open_positions)),
-                 str(len(self.strategies[StrategyType.TECHNICAL_STRICT].open_positions)),
-                 str(len(self.strategies[StrategyType.BALANCED].open_positions)), "-"),
-            ]
+        print("\n" + "=" * 100)
 
-            for row in metrics:
-                print(" | ".join(str(c).ljust(w) for c, w in zip(row, col_widths)))
-
-        print("=" * 90)
-
-        # Determine overall winner
-        if social and tech and balanced:
-            returns = [
-                (StrategyType.SOCIAL_PURE, social.total_return_pct),
-                (StrategyType.TECHNICAL_STRICT, tech.total_return_pct),
-                (StrategyType.BALANCED, balanced.total_return_pct),
-            ]
+        # Determine overall winner across ALL strategies
+        if performances:
+            returns = [(st, perf.total_return_pct) for st, perf in performances.items()]
             best = max(returns, key=lambda x: x[1])
             print(f"\n🏆 CURRENT LEADER: {best[0].value.upper()} ({best[1]:+.2f}% return)")
 

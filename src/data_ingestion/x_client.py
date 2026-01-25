@@ -12,6 +12,7 @@ Optimizations implemented:
 import json
 import logging
 import time
+from collections import OrderedDict
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional
@@ -20,6 +21,7 @@ import macrocosmos as mc
 from pydantic import BaseModel, Field
 
 from ..config import Settings
+from ..constants import SEEN_POSTS_CACHE_MAX_SIZE_HIGH_VOLUME, SEEN_POSTS_CACHE_TRIM_SIZE_HIGH_VOLUME
 
 logger = logging.getLogger(__name__)
 
@@ -97,7 +99,7 @@ class XClient:
         "bullish", "bearish", "buy", "sell"
     ]
 
-    # EXPANDED: Keywords for ALL supported assets
+    # EXPANDED: Keywords for ALL supported assets (80+ keywords)
     ALTCOIN_KEYWORDS = [
         # Major
         "BTC", "bitcoin", "ETH", "ethereum",
@@ -107,12 +109,36 @@ class XClient:
         "XRP", "ripple", "ADA", "cardano", "DOT", "polkadot", "LTC", "litecoin",
         # DeFi
         "LINK", "chainlink", "UNI", "uniswap", "INJ", "injective",
+        "AAVE", "MKR", "makerdao", "CRV", "curve", "SNX", "synthetix",
         # Meme
-        "DOGE", "dogecoin", "SHIB", "shiba",
+        "DOGE", "dogecoin", "SHIB", "shiba", "PEPE", "WIF", "BONK", "FLOKI",
         # L2s
-        "ARB", "arbitrum", "OP", "optimism",
+        "ARB", "arbitrum", "OP", "optimism", "MATIC", "polygon", "ZK", "zksync",
+        "STRK", "starknet", "MANTA", "BASE", "BLAST",
         # AI/New
-        "TAO", "bittensor", "ATOM", "cosmos",
+        "TAO", "bittensor", "ATOM", "cosmos", "FET", "fetch", "RNDR", "render",
+        "AGIX", "singularity", "OCEAN", "WLD", "worldcoin",
+        # Hot 2024-2025
+        "SUI", "SEI", "TIA", "celestia", "JUP", "jupiter", "JTO", "jito",
+        "PYTH", "DYM", "dymension", "ALT", "altlayer", "W", "wormhole",
+        # Exchange tokens
+        "BNB", "binance", "CRO", "cronos", "OKB", "KCS",
+        # Privacy
+        "XMR", "monero", "ZEC", "zcash",
+        # Infrastructure
+        "GRT", "thegraph", "FIL", "filecoin", "AR", "arweave",
+        "HBAR", "hedera", "QNT", "quant", "VET", "vechain",
+        # Gaming/NFT
+        "IMX", "immutable", "SAND", "sandbox", "MANA", "AXS", "GALA",
+    ]
+
+    # Additional signal keywords for more specific trading signals
+    SIGNAL_KEYWORDS = [
+        "entry", "exit", "target", "stop loss", "take profit",
+        "breakout", "breakdown", "support", "resistance",
+        "accumulate", "dca", "moon", "pump", "dump",
+        "reversal", "bounce", "dip", "ath", "all time high",
+        "leverage", "margin", "liquidation", "squeeze",
     ]
 
     # Rate limiting settings
@@ -249,6 +275,87 @@ class XClient:
         "AltcoinBuzz",        # Altcoin Buzz - 300K
         "Boxmining",          # Boxmining - 200K
         "skaboroewanalytics", # Skew - derivatives
+
+        # ========== SOL ECOSYSTEM ==========
+        "SolanaLegend",       # Solana trader
+        "heaborolius_io",     # Helius - SOL infra
+        "JupiterExchange",    # Jupiter - DEX
+        "marginfi",           # Marginfi - lending
+        "phantom",            # Phantom wallet
+        "MagicEden",          # NFT marketplace
+        "bonk_inu",           # BONK official
+        "weremeow",           # Solana memes
+
+        # ========== DERIVATIVES & OPTIONS ==========
+        "GreeksLive",         # Options flow
+        "DeribitExchange",    # Options exchange
+        "laevitas_ch",        # Laevitas - derivatives data
+        "AmberGroup_io",      # Market maker
+        "wintermute_t",       # Market maker
+        "FalconXNetwork",     # Trading infra
+
+        # ========== CT PERSONALITIES ==========
+        "GCRClassic",         # GCR - legendary trader
+        "CanteringClark",     # Cantering Clark
+        "CryptoGains",        # CryptoGains
+        "TheCryptoLark",      # Crypto Lark
+        "CryptoSailor_",      # CryptoSailor
+        "CryptoFaibik",       # Faibik TA
+        "blknoiz06",          # Ansem - CT personality
+        "TheDeFiEdge",        # DeFi Edge - threads
+        "thedefipastor",      # DeFi Pastor
+        "DeFiyst",            # DeFi analyst
+        "DarrenLautf",        # Darren Lau - VC
+
+        # ========== ASIAN CT ==========
+        "Phyrex_Ni",          # Phyrex - Asia
+        "CoinGecko",          # CoinGecko
+        "binance",            # Binance official
+        "kucaboroincom",      # KuCoin
+        "okx",                # OKX
+        "Bybit_Official",     # Bybit
+        "gate_io",            # Gate.io
+
+        # ========== MORE NEWS & DATA ==========
+        "CoinMarketCap",      # CMC
+        "coinglass_com",      # Coinglass - derivatives
+        "DefiLlama",          # DeFiLlama - TVL
+        "ArkhamIntel",        # Arkham - onchain
+        "spotonchain",        # Spot On Chain
+        "chainaborolinaborok",# Chainlink news
+        "LayerZero_Labs",     # LayerZero
+        "eigenlayer",         # EigenLayer
+
+        # ========== YIELD & FARMING ==========
+        "DefiMochi",          # DeFi yield hunter
+        "smashingbricks",     # Yield farmer
+        "Miles_Deutscher",    # DeFi researcher
+        "DynamoDeFi",         # Dynamo - yields
+        "yearnfi",            # Yearn official
+
+        # ========== MORE MEME/DEGEN ==========
+        "pumpdotfun",         # Pump.fun
+        "DegenSpartan",       # Degen Spartan
+        "baboroeanie",        # Beanie
+
+        # ========== BITCOIN MAXIS ==========
+        "daboroanheld",       # Dan Held
+        "Excellion",          # Samson Mow
+        "jackmallers",        # Jack Mallers - Strike
+        "hodlonaut",          # Hodlonaut
+        "JWWeatherman_",      # JW Weatherman
+
+        # ========== TRADING ROOMS & SIGNALS ==========
+        "52kskew",            # Skew - derivatives
+        "CryptoKrillin",      # Krillin
+        "MayaMonen",          # Trader Maya
+        "IncomeSharks",       # Income Sharks
+        "newtonhq",           # Newton
+        "LilMoonLambo",       # Lil Moon Lambo
+        "kraborouger_alex",   # Alex Kruger
+        "ByzGeneral",         # Byzantine General
+        "TedtalksMacro",      # Ted - macro
+        "JohnEDeaton1",       # John Deaton - XRP lawyer
     ]
 
     def __init__(self, settings: Settings):
@@ -265,7 +372,7 @@ class XClient:
 
         # Incremental fetching: track last fetch time and seen post IDs
         self._last_fetch_time: Optional[datetime] = None
-        self._seen_post_ids: set[str] = set()
+        self._seen_post_ids: OrderedDict[str, None] = OrderedDict()
         self._last_api_call: float = 0  # For rate limiting
 
         # VOLUME TRACKING: Store historical volume for z-score calculation
@@ -663,13 +770,13 @@ class XClient:
         unique_posts = []
         for post in all_posts:
             if post.post_id not in self._seen_post_ids:
-                self._seen_post_ids.add(post.post_id)
+                self._seen_post_ids[post.post_id] = None
                 unique_posts.append(post)
 
-        # Limit seen_post_ids cache size (keep last 10000)
-        if len(self._seen_post_ids) > 10000:
-            # Convert to list, keep recent half
-            self._seen_post_ids = set(list(self._seen_post_ids)[-5000:])
+        # Limit seen_post_ids cache size (OrderedDict maintains insertion order for FIFO eviction)
+        if len(self._seen_post_ids) > SEEN_POSTS_CACHE_MAX_SIZE_HIGH_VOLUME:
+            items_to_keep = list(self._seen_post_ids.keys())[-SEEN_POSTS_CACHE_TRIM_SIZE_HIGH_VOLUME:]
+            self._seen_post_ids = OrderedDict.fromkeys(items_to_keep)
 
         # Update last fetch time
         self._last_fetch_time = end_date

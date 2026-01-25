@@ -181,18 +181,20 @@ class SignalExtractor:
         """
         return [self.extract(text) for text in texts]
 
-    def is_actionable(self, extraction: SignalExtraction) -> bool:
+    def is_actionable(self, extraction: SignalExtraction, min_confidence: float = None) -> bool:
         """
         Check if an extraction is actionable (has asset, direction, and sufficient confidence).
 
         Args:
             extraction: SignalExtraction to check
+            min_confidence: Override minimum confidence threshold (optional)
 
         Returns:
             True if signal is actionable
         """
+        threshold = min_confidence if min_confidence is not None else self.min_confidence
         return (
             extraction.asset is not None
             and extraction.direction is not None
-            and extraction.confidence >= self.min_confidence
+            and extraction.confidence >= threshold
         )

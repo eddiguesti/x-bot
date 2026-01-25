@@ -2,5 +2,6 @@
 
 from .extractor import SignalExtractor
 from .rules import RuleBasedExtractor
+from .llm_extractor import LLMSignalExtractor
 
-__all__ = ["SignalExtractor", "RuleBasedExtractor"]
+__all__ = ["SignalExtractor", "RuleBasedExtractor", "LLMSignalExtractor"]

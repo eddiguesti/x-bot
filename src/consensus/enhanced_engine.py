@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from ..config import Settings
 from ..models import (
     Asset, Direction, ConsensusAction, Signal, SignalOutcome,
-    Creator, ConsensusSnapshot, ConsensusResult
+    Creator, ConsensusSnapshot, ConsensusResult, SignalSource
 )
 from ..data_ingestion.x_client import XClient, MarketSentiment
 
@@ -335,6 +335,7 @@ class EnhancedConsensusEngine:
         asset: Asset,
         lookback_hours: int = 48,
         save_snapshot: bool = True,
+        sources: list[SignalSource] = None,
     ) -> ConsensusResult:
         """
         Calculate enhanced weighted consensus for an asset.
@@ -344,15 +345,25 @@ class EnhancedConsensusEngine:
         2. Quality filtering
         3. Momentum bonus
         4. Better confidence calibration
+
+        Args:
+            sources: Optional list of signal sources to include.
+                     If None, includes all sources.
         """
         cutoff = datetime.utcnow() - timedelta(hours=lookback_hours)
 
         # Get recent signals
-        signals = session.query(Signal).join(Creator).filter(
+        query = session.query(Signal).join(Creator).filter(
             Signal.asset == asset,
             Signal.posted_at >= cutoff,
             Creator.is_active == True,
-        ).all()
+        )
+
+        # Filter by sources if specified
+        if sources:
+            query = query.filter(Signal.source.in_(sources))
+
+        signals = query.all()
 
         if not signals:
             return self._empty_result(session, asset, save_snapshot)

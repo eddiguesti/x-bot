@@ -30,6 +30,14 @@ class Settings(BaseSettings):
     telegram_bot_token: str = Field(default="", alias="TELEGRAM_BOT_TOKEN")
     telegram_chat_id: str = Field(default="", alias="TELEGRAM_CHAT_ID")
 
+    # LLM APIs for signal extraction
+    # Primary: Gemini Flash (cheapest + reliable)
+    gemini_api_key: str = Field(default="", alias="GEMINI_API_KEY")
+    # Fallback: DeepSeek (uses OpenAI-compatible API)
+    deepseek_api_key: str = Field(default="", alias="DEEPSEEK_API_KEY")
+    # LLM provider preference: "gemini", "deepseek", or "auto" (tries gemini first)
+    llm_provider: str = Field(default="auto", alias="LLM_PROVIDER")
+
     # Database
     database_url: str = Field(default="sqlite:///data/consensus.db", alias="DATABASE_URL")
 

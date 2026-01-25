@@ -87,11 +87,14 @@ class Direction(str, Enum):
 
 
 class Asset(str, Enum):
-    """Supported assets."""
+    """Supported assets - 30 major tradeable coins."""
+    # Tier 1: Major
     BTC = "BTC"
     ETH = "ETH"
     SOL = "SOL"
     XRP = "XRP"
+    BNB = "BNB"
+    # Tier 2: Large caps
     DOGE = "DOGE"
     ADA = "ADA"
     AVAX = "AVAX"
@@ -99,14 +102,27 @@ class Asset(str, Enum):
     DOT = "DOT"
     SHIB = "SHIB"
     LTC = "LTC"
+    # Tier 3: DeFi & L2
     UNI = "UNI"
     ATOM = "ATOM"
     ARB = "ARB"
     OP = "OP"
+    MATIC = "MATIC"
+    AAVE = "AAVE"
+    # Tier 4: New L1s
     APT = "APT"
     NEAR = "NEAR"
+    SUI = "SUI"
+    SEI = "SEI"
+    TIA = "TIA"
+    # Tier 5: AI & Compute
     INJ = "INJ"
     TAO = "TAO"
+    FET = "FET"
+    RNDR = "RNDR"
+    # Tier 6: Memecoins
+    PEPE = "PEPE"
+    WIF = "WIF"
 
 
 class SignalOutcome(str, Enum):
@@ -121,6 +137,13 @@ class ConsensusAction(str, Enum):
     LONG = "long"
     SHORT = "short"
     NO_TRADE = "no_trade"
+
+
+class SignalSource(str, Enum):
+    """Source of the trading signal."""
+    TWITTER = "twitter"
+    REDDIT = "reddit"
+    YOUTUBE = "youtube"
 
 
 # SQLAlchemy Models
@@ -182,6 +205,7 @@ class Signal(Base):
     asset = Column(SQLEnum(Asset), nullable=False)
     direction = Column(SQLEnum(Direction), nullable=False)
     confidence = Column(Float, default=1.0)  # NLP extraction confidence
+    source = Column(SQLEnum(SignalSource), default=SignalSource.TWITTER)  # Signal source
 
     # Evaluation
     outcome = Column(SQLEnum(SignalOutcome), default=SignalOutcome.PENDING)

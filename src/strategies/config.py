@@ -1,28 +1,69 @@
 """
 Strategy configurations for A/B testing different trading approaches.
 
-THREE STRATEGIES TO TEST:
+Uses factory pattern to reduce duplication across data sources.
+
+THREE PHILOSOPHIES:
 1. SOCIAL_PURE - Trust the crowd: social signals only, minimal filters
 2. TECHNICAL_STRICT - Trust the charts: heavy technical confirmation
-3. BALANCED - Trust both: hybrid approach (current optimized version)
+3. BALANCED - Trust both: hybrid approach
 
-Each strategy has different:
-- Signal thresholds
-- Technical confirmation requirements
-- Position sizing rules
-- Risk parameters
+FIVE DATA SOURCES:
+1. TWITTER - X/Twitter only
+2. REDDIT - Reddit only
+3. YOUTUBE - YouTube only
+4. MIXED - Twitter + Reddit
+5. ALL - Twitter + Reddit + YouTube
 """
 
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Optional
+from copy import deepcopy
+
+
+class DataSource(str, Enum):
+    """Data source for social signals."""
+    TWITTER = "twitter"    # X/Twitter only
+    REDDIT = "reddit"      # Reddit only
+    YOUTUBE = "youtube"    # YouTube only
+    MIXED = "mixed"        # Twitter + Reddit
+    ALL = "all"            # Twitter + Reddit + YouTube
 
 
 class StrategyType(str, Enum):
     """Available trading strategies."""
-    SOCIAL_PURE = "social_pure"        # Pure social sentiment
-    TECHNICAL_STRICT = "technical_strict"  # Heavy technical filters
-    BALANCED = "balanced"              # Hybrid approach
+    # Twitter-only strategies
+    SOCIAL_PURE = "social_pure"
+    TECHNICAL_STRICT = "technical_strict"
+    BALANCED = "balanced"
+
+    # Reddit-only strategies
+    REDDIT_SOCIAL_PURE = "reddit_social_pure"
+    REDDIT_TECHNICAL_STRICT = "reddit_technical_strict"
+    REDDIT_BALANCED = "reddit_balanced"
+
+    # Mixed (Twitter + Reddit) strategies
+    MIXED_SOCIAL_PURE = "mixed_social_pure"
+    MIXED_TECHNICAL_STRICT = "mixed_technical_strict"
+    MIXED_BALANCED = "mixed_balanced"
+
+    # YouTube-only strategies
+    YOUTUBE_SOCIAL_PURE = "youtube_social_pure"
+    YOUTUBE_TECHNICAL_STRICT = "youtube_technical_strict"
+    YOUTUBE_BALANCED = "youtube_balanced"
+
+    # All sources (Twitter + Reddit + YouTube) strategies
+    ALL_SOCIAL_PURE = "all_social_pure"
+    ALL_TECHNICAL_STRICT = "all_technical_strict"
+    ALL_BALANCED = "all_balanced"
+
+
+class Philosophy(str, Enum):
+    """Trading philosophy presets."""
+    SOCIAL_PURE = "social_pure"
+    TECHNICAL_STRICT = "technical_strict"
+    BALANCED = "balanced"
 
 
 @dataclass
@@ -41,10 +82,10 @@ class ConsensusConfig:
 class TechnicalConfig:
     """Technical analysis configuration."""
     require_tech_confirmation: bool = True
-    tech_score_threshold: float = -0.2  # Minimum score for longs
+    tech_score_threshold: float = -0.2
     allow_counter_trend: bool = True
-    counter_trend_rsi_threshold: float = 35.0  # RSI for mean reversion
-    max_volatility_atr: float = 8.0  # Skip if ATR% above this
+    counter_trend_rsi_threshold: float = 35.0
+    max_volatility_atr: float = 8.0
     rsi_overbought: float = 80.0
     rsi_oversold: float = 20.0
 
@@ -71,6 +112,7 @@ class StrategyConfig:
     """Complete strategy configuration."""
     name: StrategyType
     description: str
+    data_source: DataSource = DataSource.TWITTER
     consensus: ConsensusConfig = field(default_factory=ConsensusConfig)
     technical: TechnicalConfig = field(default_factory=TechnicalConfig)
     risk: RiskConfig = field(default_factory=RiskConfig)
@@ -80,118 +122,99 @@ class StrategyConfig:
 
 
 # =============================================================================
-# STRATEGY 1: SOCIAL PURE
-# Philosophy: The crowd knows. Trust curated traders + sentiment signals.
-# Hypothesis: Social alpha decays fast in crypto - act on signals quickly
+# BASE PRESETS - Define each philosophy's core parameters
 # =============================================================================
-SOCIAL_PURE = StrategyConfig(
-    name=StrategyType.SOCIAL_PURE,
-    description="Pure social signals - trust the crowd, minimal filters",
-    consensus=ConsensusConfig(
-        min_signal_confidence=0.30,      # Lower bar - more signals
-        min_creator_accuracy=0.35,       # Trust more creators
-        min_signals_for_trade=3,         # Act on fewer signals (speed)
-        min_agreement_ratio=0.55,        # Simple majority
-        decay_half_life_hours=4.0,       # FAST decay - recent signals matter most
+
+_SOCIAL_PURE_PRESET = {
+    "consensus": ConsensusConfig(
+        min_signal_confidence=0.30,
+        min_creator_accuracy=0.35,
+        min_signals_for_trade=3,       # Base value, adjusted per source
+        min_agreement_ratio=0.55,
+        decay_half_life_hours=4.0,     # Fast decay
         use_crowd_sentiment=True,
-        sentiment_weight=0.30,           # Heavy sentiment influence
+        sentiment_weight=0.30,         # Heavy sentiment
     ),
-    technical=TechnicalConfig(
-        require_tech_confirmation=False,  # NO technical gates
-        tech_score_threshold=-0.5,        # Only block extreme against
+    "technical": TechnicalConfig(
+        require_tech_confirmation=False,
+        tech_score_threshold=-0.5,
         allow_counter_trend=True,
         counter_trend_rsi_threshold=30.0,
-        max_volatility_atr=10.0,          # Allow higher volatility
-        rsi_overbought=85.0,              # Only block extremes
+        max_volatility_atr=10.0,       # Allow higher volatility
+        rsi_overbought=85.0,
         rsi_oversold=15.0,
     ),
-    risk=RiskConfig(
-        base_position_pct=0.012,          # Slightly smaller base (more trades)
+    "risk": RiskConfig(
+        base_position_pct=0.012,
         min_position_pct=0.005,
-        max_position_pct=0.025,           # Cap individual trades
-        max_total_exposure=0.25,          # Allow more exposure (more trades)
-        min_rr_ratio=1.2,                 # Lower R:R ok (higher frequency)
+        max_position_pct=0.025,
+        max_total_exposure=0.25,       # More exposure
+        min_rr_ratio=1.2,              # Lower R:R ok
         target_rr_ratio=2.0,
-        min_conviction=0.30,              # Lower bar to trade
-        max_positions=8,                  # More concurrent positions
-        max_daily_loss_pct=0.03,          # Slightly wider daily loss
+        min_conviction=0.30,           # Lower bar
+        max_positions=8,               # More concurrent
+        max_daily_loss_pct=0.03,
         max_drawdown_pct=0.10,
         use_partial_profits=True,
         use_anti_martingale=True,
     ),
-)
+}
 
-
-# =============================================================================
-# STRATEGY 2: TECHNICAL STRICT
-# Philosophy: Charts don't lie. Only trade when technicals strongly confirm.
-# Hypothesis: Fewer, higher quality trades with better win rate
-# =============================================================================
-TECHNICAL_STRICT = StrategyConfig(
-    name=StrategyType.TECHNICAL_STRICT,
-    description="Technical-heavy - charts must confirm, quality over quantity",
-    consensus=ConsensusConfig(
-        min_signal_confidence=0.45,       # Higher quality signals only
-        min_creator_accuracy=0.50,        # Only trust accurate creators
-        min_signals_for_trade=7,          # Need more agreement
-        min_agreement_ratio=0.70,         # Strong consensus required
-        decay_half_life_hours=12.0,       # Slower decay - signals have more life
+_TECHNICAL_STRICT_PRESET = {
+    "consensus": ConsensusConfig(
+        min_signal_confidence=0.45,
+        min_creator_accuracy=0.50,
+        min_signals_for_trade=7,       # Base value, adjusted per source
+        min_agreement_ratio=0.70,      # Strong consensus
+        decay_half_life_hours=12.0,    # Slow decay
         use_crowd_sentiment=True,
-        sentiment_weight=0.10,            # Less sentiment influence
+        sentiment_weight=0.10,         # Less sentiment
     ),
-    technical=TechnicalConfig(
+    "technical": TechnicalConfig(
         require_tech_confirmation=True,
-        tech_score_threshold=0.1,         # Must be positive (confirming)
-        allow_counter_trend=False,        # NO counter-trend trades
-        counter_trend_rsi_threshold=25.0, # Very oversold only
-        max_volatility_atr=6.0,           # Avoid high volatility
-        rsi_overbought=70.0,              # Stricter RSI
+        tech_score_threshold=0.1,      # Must be positive
+        allow_counter_trend=False,     # No counter-trend
+        counter_trend_rsi_threshold=25.0,
+        max_volatility_atr=6.0,        # Avoid high volatility
+        rsi_overbought=70.0,
         rsi_oversold=30.0,
     ),
-    risk=RiskConfig(
-        base_position_pct=0.02,           # Larger positions (fewer trades)
+    "risk": RiskConfig(
+        base_position_pct=0.02,        # Larger positions
         min_position_pct=0.01,
-        max_position_pct=0.04,            # Allow bigger on A+ setups
-        max_total_exposure=0.15,          # Lower total exposure
-        min_rr_ratio=2.0,                 # Strict 2:1 minimum
-        target_rr_ratio=3.0,              # Aim for 3:1
-        min_conviction=0.50,              # High conviction only
-        max_positions=4,                  # Fewer concurrent
-        max_daily_loss_pct=0.02,          # Tighter daily loss
-        max_drawdown_pct=0.06,            # Tighter drawdown
+        max_position_pct=0.04,
+        max_total_exposure=0.15,       # Lower exposure
+        min_rr_ratio=2.0,              # Strict 2:1
+        target_rr_ratio=3.0,
+        min_conviction=0.50,           # High conviction
+        max_positions=4,               # Fewer concurrent
+        max_daily_loss_pct=0.02,
+        max_drawdown_pct=0.06,
         use_partial_profits=True,
         use_anti_martingale=True,
     ),
-)
+}
 
-
-# =============================================================================
-# STRATEGY 3: BALANCED (Current Optimized)
-# Philosophy: Best of both worlds. Social for signals, technical for validation.
-# Hypothesis: Crypto-adapted hybrid outperforms pure approaches
-# =============================================================================
-BALANCED = StrategyConfig(
-    name=StrategyType.BALANCED,
-    description="Hybrid approach - social signals with crypto-adapted tech filters",
-    consensus=ConsensusConfig(
+_BALANCED_PRESET = {
+    "consensus": ConsensusConfig(
         min_signal_confidence=0.35,
         min_creator_accuracy=0.40,
-        min_signals_for_trade=5,
+        min_signals_for_trade=5,       # Base value, adjusted per source
         min_agreement_ratio=0.60,
         decay_half_life_hours=8.0,
         use_crowd_sentiment=True,
         sentiment_weight=0.20,
     ),
-    technical=TechnicalConfig(
+    "technical": TechnicalConfig(
         require_tech_confirmation=True,
-        tech_score_threshold=-0.2,        # "Not strongly against"
-        allow_counter_trend=True,         # Allow mean reversion
+        tech_score_threshold=-0.2,     # "Not strongly against"
+        allow_counter_trend=True,
         counter_trend_rsi_threshold=35.0,
         max_volatility_atr=8.0,
         rsi_overbought=80.0,
         rsi_oversold=20.0,
     ),
-    risk=RiskConfig(
+    "risk": RiskConfig(
         base_position_pct=0.015,
         min_position_pct=0.005,
         max_position_pct=0.03,
@@ -205,14 +228,182 @@ BALANCED = StrategyConfig(
         use_partial_profits=True,
         use_anti_martingale=True,
     ),
-)
+}
+
+_PRESETS = {
+    Philosophy.SOCIAL_PURE: _SOCIAL_PURE_PRESET,
+    Philosophy.TECHNICAL_STRICT: _TECHNICAL_STRICT_PRESET,
+    Philosophy.BALANCED: _BALANCED_PRESET,
+}
+
+
+# =============================================================================
+# SOURCE-SPECIFIC ADJUSTMENTS
+# =============================================================================
+
+# min_signals_for_trade adjustments based on data volume
+_MIN_SIGNALS_ADJUSTMENTS = {
+    # (source, philosophy) -> adjustment to base min_signals
+    (DataSource.TWITTER, Philosophy.SOCIAL_PURE): 0,
+    (DataSource.TWITTER, Philosophy.TECHNICAL_STRICT): 0,
+    (DataSource.TWITTER, Philosophy.BALANCED): 0,
+
+    (DataSource.REDDIT, Philosophy.SOCIAL_PURE): 0,
+    (DataSource.REDDIT, Philosophy.TECHNICAL_STRICT): 0,
+    (DataSource.REDDIT, Philosophy.BALANCED): 0,
+
+    (DataSource.YOUTUBE, Philosophy.SOCIAL_PURE): -1,   # Less content
+    (DataSource.YOUTUBE, Philosophy.TECHNICAL_STRICT): -4,  # Much less content (7->3)
+    (DataSource.YOUTUBE, Philosophy.BALANCED): -3,   # Less content (5->2)
+
+    (DataSource.MIXED, Philosophy.SOCIAL_PURE): 1,    # More data available
+    (DataSource.MIXED, Philosophy.TECHNICAL_STRICT): 1,
+    (DataSource.MIXED, Philosophy.BALANCED): 1,
+
+    (DataSource.ALL, Philosophy.SOCIAL_PURE): 2,      # Most data available
+    (DataSource.ALL, Philosophy.TECHNICAL_STRICT): 3,
+    (DataSource.ALL, Philosophy.BALANCED): 2,
+}
+
+# YouTube has slower decay (longer-form content)
+_DECAY_ADJUSTMENTS = {
+    DataSource.YOUTUBE: 2.0,  # Add 2 hours to decay half-life
+}
+
+# Strategy type mapping
+_STRATEGY_TYPE_MAP = {
+    (DataSource.TWITTER, Philosophy.SOCIAL_PURE): StrategyType.SOCIAL_PURE,
+    (DataSource.TWITTER, Philosophy.TECHNICAL_STRICT): StrategyType.TECHNICAL_STRICT,
+    (DataSource.TWITTER, Philosophy.BALANCED): StrategyType.BALANCED,
+
+    (DataSource.REDDIT, Philosophy.SOCIAL_PURE): StrategyType.REDDIT_SOCIAL_PURE,
+    (DataSource.REDDIT, Philosophy.TECHNICAL_STRICT): StrategyType.REDDIT_TECHNICAL_STRICT,
+    (DataSource.REDDIT, Philosophy.BALANCED): StrategyType.REDDIT_BALANCED,
+
+    (DataSource.YOUTUBE, Philosophy.SOCIAL_PURE): StrategyType.YOUTUBE_SOCIAL_PURE,
+    (DataSource.YOUTUBE, Philosophy.TECHNICAL_STRICT): StrategyType.YOUTUBE_TECHNICAL_STRICT,
+    (DataSource.YOUTUBE, Philosophy.BALANCED): StrategyType.YOUTUBE_BALANCED,
+
+    (DataSource.MIXED, Philosophy.SOCIAL_PURE): StrategyType.MIXED_SOCIAL_PURE,
+    (DataSource.MIXED, Philosophy.TECHNICAL_STRICT): StrategyType.MIXED_TECHNICAL_STRICT,
+    (DataSource.MIXED, Philosophy.BALANCED): StrategyType.MIXED_BALANCED,
+
+    (DataSource.ALL, Philosophy.SOCIAL_PURE): StrategyType.ALL_SOCIAL_PURE,
+    (DataSource.ALL, Philosophy.TECHNICAL_STRICT): StrategyType.ALL_TECHNICAL_STRICT,
+    (DataSource.ALL, Philosophy.BALANCED): StrategyType.ALL_BALANCED,
+}
+
+# Description templates
+_DESCRIPTION_TEMPLATES = {
+    Philosophy.SOCIAL_PURE: "{source}: Pure social signals - trust the crowd, minimal filters",
+    Philosophy.TECHNICAL_STRICT: "{source}: Technical-heavy - charts must confirm, quality over quantity",
+    Philosophy.BALANCED: "{source}: Hybrid approach - social signals with crypto-adapted tech filters",
+}
+
+_SOURCE_NAMES = {
+    DataSource.TWITTER: "Twitter",
+    DataSource.REDDIT: "Reddit",
+    DataSource.YOUTUBE: "YouTube",
+    DataSource.MIXED: "Mixed (Twitter+Reddit)",
+    DataSource.ALL: "All (Twitter+Reddit+YouTube)",
+}
+
+
+# =============================================================================
+# FACTORY FUNCTION
+# =============================================================================
+
+def create_strategy(source: DataSource, philosophy: Philosophy) -> StrategyConfig:
+    """
+    Factory function to create a strategy configuration.
+
+    Args:
+        source: Data source (TWITTER, REDDIT, YOUTUBE, MIXED, ALL)
+        philosophy: Trading philosophy (SOCIAL_PURE, TECHNICAL_STRICT, BALANCED)
+
+    Returns:
+        StrategyConfig with source-specific adjustments applied
+    """
+    preset = _PRESETS[philosophy]
+
+    # Deep copy configs to avoid mutation
+    consensus = deepcopy(preset["consensus"])
+    technical = deepcopy(preset["technical"])
+    risk = deepcopy(preset["risk"])
+
+    # Apply source-specific adjustments
+    signals_adj = _MIN_SIGNALS_ADJUSTMENTS.get((source, philosophy), 0)
+    consensus.min_signals_for_trade = max(2, consensus.min_signals_for_trade + signals_adj)
+
+    decay_adj = _DECAY_ADJUSTMENTS.get(source, 0)
+    consensus.decay_half_life_hours += decay_adj
+
+    # Get strategy type and description
+    strategy_type = _STRATEGY_TYPE_MAP[(source, philosophy)]
+    description = _DESCRIPTION_TEMPLATES[philosophy].format(source=_SOURCE_NAMES[source])
+
+    return StrategyConfig(
+        name=strategy_type,
+        description=description,
+        data_source=source,
+        consensus=consensus,
+        technical=technical,
+        risk=risk,
+    )
+
+
+# =============================================================================
+# GENERATED STRATEGIES
+# =============================================================================
+
+# Twitter strategies
+SOCIAL_PURE = create_strategy(DataSource.TWITTER, Philosophy.SOCIAL_PURE)
+TECHNICAL_STRICT = create_strategy(DataSource.TWITTER, Philosophy.TECHNICAL_STRICT)
+BALANCED = create_strategy(DataSource.TWITTER, Philosophy.BALANCED)
+
+# Reddit strategies
+REDDIT_SOCIAL_PURE = create_strategy(DataSource.REDDIT, Philosophy.SOCIAL_PURE)
+REDDIT_TECHNICAL_STRICT = create_strategy(DataSource.REDDIT, Philosophy.TECHNICAL_STRICT)
+REDDIT_BALANCED = create_strategy(DataSource.REDDIT, Philosophy.BALANCED)
+
+# YouTube strategies
+YOUTUBE_SOCIAL_PURE = create_strategy(DataSource.YOUTUBE, Philosophy.SOCIAL_PURE)
+YOUTUBE_TECHNICAL_STRICT = create_strategy(DataSource.YOUTUBE, Philosophy.TECHNICAL_STRICT)
+YOUTUBE_BALANCED = create_strategy(DataSource.YOUTUBE, Philosophy.BALANCED)
+
+# Mixed strategies
+MIXED_SOCIAL_PURE = create_strategy(DataSource.MIXED, Philosophy.SOCIAL_PURE)
+MIXED_TECHNICAL_STRICT = create_strategy(DataSource.MIXED, Philosophy.TECHNICAL_STRICT)
+MIXED_BALANCED = create_strategy(DataSource.MIXED, Philosophy.BALANCED)
+
+# All sources strategies
+ALL_SOCIAL_PURE = create_strategy(DataSource.ALL, Philosophy.SOCIAL_PURE)
+ALL_TECHNICAL_STRICT = create_strategy(DataSource.ALL, Philosophy.TECHNICAL_STRICT)
+ALL_BALANCED = create_strategy(DataSource.ALL, Philosophy.BALANCED)
 
 
 # Strategy registry
 STRATEGIES = {
+    # Twitter-only
     StrategyType.SOCIAL_PURE: SOCIAL_PURE,
     StrategyType.TECHNICAL_STRICT: TECHNICAL_STRICT,
     StrategyType.BALANCED: BALANCED,
+    # Reddit-only
+    StrategyType.REDDIT_SOCIAL_PURE: REDDIT_SOCIAL_PURE,
+    StrategyType.REDDIT_TECHNICAL_STRICT: REDDIT_TECHNICAL_STRICT,
+    StrategyType.REDDIT_BALANCED: REDDIT_BALANCED,
+    # Mixed (Twitter + Reddit)
+    StrategyType.MIXED_SOCIAL_PURE: MIXED_SOCIAL_PURE,
+    StrategyType.MIXED_TECHNICAL_STRICT: MIXED_TECHNICAL_STRICT,
+    StrategyType.MIXED_BALANCED: MIXED_BALANCED,
+    # YouTube-only
+    StrategyType.YOUTUBE_SOCIAL_PURE: YOUTUBE_SOCIAL_PURE,
+    StrategyType.YOUTUBE_TECHNICAL_STRICT: YOUTUBE_TECHNICAL_STRICT,
+    StrategyType.YOUTUBE_BALANCED: YOUTUBE_BALANCED,
+    # All sources (Twitter + Reddit + YouTube)
+    StrategyType.ALL_SOCIAL_PURE: ALL_SOCIAL_PURE,
+    StrategyType.ALL_TECHNICAL_STRICT: ALL_TECHNICAL_STRICT,
+    StrategyType.ALL_BALANCED: ALL_BALANCED,
 }
 
 
@@ -229,7 +420,7 @@ def list_strategies() -> list[StrategyConfig]:
 def print_strategy_comparison():
     """Print comparison table of all strategies."""
     print("\n" + "=" * 80)
-    print("STRATEGY COMPARISON")
+    print("STRATEGY COMPARISON (Twitter base values)")
     print("=" * 80)
 
     headers = ["Parameter", "Social Pure", "Technical", "Balanced"]
