@@ -158,7 +158,7 @@ def run_trading_loop(interval_minutes: int = 30):
                 session=session,
                 initial_balance=10000.0,
             )
-            backtest_days = int(os.getenv("BACKTEST_DAYS", 7))
+            backtest_days = int(os.getenv("BACKTEST_DAYS", 90))
             backtester.run_backtest(days_back=backtest_days)
             logger.info("Backtest complete")
         except Exception as e:
