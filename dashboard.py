@@ -344,7 +344,7 @@ def get_signal_stats(session) -> dict:
                 "direction": s.direction.value if s.direction else "N/A",
                 "confidence": s.confidence,
                 "source": s.source.value if s.source else "N/A",
-                "username": s.username,
+                "username": s.creator.username if s.creator else "Unknown",
                 "posted_at": s.posted_at.isoformat() if s.posted_at else None,
             }
             for s in latest
