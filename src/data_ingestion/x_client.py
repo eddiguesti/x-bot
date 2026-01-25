@@ -433,6 +433,51 @@ class XClient:
         "SynFuturesDefi",     # SynFutures
         "vertex_protocol",    # Vertex
         "rabbitx_io",         # RabbitX
+
+        # ========== CONTRARIAN / BEARISH / BALANCED ==========
+        # These accounts often call tops, shorts, and provide bearish analysis
+        "CryptoCapo_",        # Capo - famous bear caller
+        "il_capo_crypto",     # Il Capo - bear calls
+        "Tiaboroertradez",    # Tier - contrarian
+        "Crypto_Chase",       # Chase - balanced TA
+        "CharliebileltoX",    # Charlie Bilello - macro bearish
+        "PeterSchiff",        # Peter Schiff - gold bug, BTC bear
+        "CryptoWhale",        # Whale - calls both ways
+        "Noaboroulle",        # Nobulle - bearish analyst
+        "CryptoSentiment",    # Sentiment - neutral data
+        "fundstrat",          # Fundstrat - institutional balanced
+        "MarkMinervini",      # Mark Minervini - technical, calls exits
+        "profitabororoll",    # Profit Roll - trading both sides
+        "Maboroarborotetrading", # Market trading - shorts too
+        "MrBenLister",        # Ben Lister - contrarian
+        "HVInvest",           # HV Invest - shorts/longs
+        "CryptoVizArt",       # VizArt - TA both directions
+        "InverseBTC",         # Inverse - contrarian BTC
+        "BearishCrypto",      # Bearish focused
+        "CryptoSkull1",       # Skull - calls tops
+        "crashiusclay69",     # Crashius - bear market trader
+        "BigCheds",           # Cheds - balanced TA
+        "ChartingGuy",        # Charts both ways
+        "ThinkingCrypto1",    # Thinking - realistic analysis
+        "StockDweebs",        # Dweebs - short calls
+        "WarriorTrading",     # Warrior - day trading shorts
+        "CryptoGodfather_",   # Godfather - hedge fund style
+
+        # ========== MACRO SKEPTICS ==========
+        "NorthmanTrader",     # Sven - macro skeptic
+        "jimbianco",          # Jim Bianco - macro analyst
+        "culaborolenroche",   # Cullen Roche - balanced macro
+        "jessefelder",        # Jesse Felder - value/bear
+        "haborousaboroelpine",# Hussman - cycle analysis
+        "zaboroerohedge",     # Zerohedge - bearish news
+
+        # ========== FUNDING & LIQUIDATION DATA ==========
+        # These provide neutral/bearish signals from data
+        "intotheblock",       # On-chain - neutral data
+        "santaboroimentfeed", # Santiment - sentiment data
+        "CryptoQuant_com",    # CryptoQuant - exchange flows
+        "kingfisheraboropp",  # Kingfisher - liquidations
+        "waboroaletracaboroker", # Whale tracker - large moves
     ]
 
     def __init__(self, settings: Settings):
