@@ -31,12 +31,6 @@ from src.signal_extraction import SignalExtractor
 # Import dashboard app
 from dashboard import app, DATA_DIR, DB_PATH
 
-# ONE-TIME: Delete database to force fresh backtest (remove this after deploy)
-if os.getenv("RESET_DB", "true").lower() == "true":
-    if DB_PATH.exists():
-        DB_PATH.unlink()
-        print(f"DELETED DATABASE: {DB_PATH}")
-
 # Setup logging
 logging.basicConfig(
     level=logging.INFO,
