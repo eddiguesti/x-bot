@@ -1248,16 +1248,28 @@ async def debug():
     try:
         portfolios = session.query(Portfolio).all()
         trades = session.query(Trade).count()
-        signals = session.query(Signal).count()
+        all_signals = session.query(Signal).all()
         creators = session.query(Creator).count()
+
+        # Analyze signal confidence distribution
+        confidences = [s.confidence for s in all_signals if s.confidence]
+        high_conf = len([c for c in confidences if c >= 0.30])
+        med_conf = len([c for c in confidences if 0.20 <= c < 0.30])
+        low_conf = len([c for c in confidences if c < 0.20])
 
         return {
             "db_path": str(DB_PATH),
             "db_exists": DB_PATH.exists(),
             "portfolios": [{"name": p.name, "balance": p.current_balance, "trades": p.total_trades} for p in portfolios],
             "total_trades": trades,
-            "total_signals": signals,
+            "total_signals": len(all_signals),
             "total_creators": creators,
+            "signal_confidence": {
+                "high_30plus": high_conf,
+                "medium_20_30": med_conf,
+                "low_under_20": low_conf,
+                "avg": sum(confidences) / len(confidences) if confidences else 0
+            }
         }
     finally:
         session.close()
