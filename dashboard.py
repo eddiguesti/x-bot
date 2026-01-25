@@ -1323,6 +1323,27 @@ async def test_api():
         }
 
 
+@app.get("/test-prices")
+async def test_prices():
+    """Test if price client can fetch prices."""
+    from src.config import get_settings
+    from src.data_ingestion import PriceClient
+    from src.models import Asset
+
+    settings = get_settings()
+    price_client = PriceClient(settings)
+
+    results = {}
+    for asset in [Asset.BTC, Asset.ETH, Asset.SOL]:
+        try:
+            price = price_client.get_current_price(asset)
+            results[asset.value] = price
+        except Exception as e:
+            results[asset.value] = f"Error: {e}"
+
+    return {"prices": results}
+
+
 if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv("PORT", 8080))
