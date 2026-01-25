@@ -31,6 +31,11 @@ from src.signal_extraction import SignalExtractor
 # Import dashboard app
 from dashboard import app, DATA_DIR, DB_PATH
 
+# ONE-TIME: Reset DB for fresh backtest with lower thresholds
+if DB_PATH.exists():
+    DB_PATH.unlink()
+    print("DATABASE RESET FOR FRESH BACKTEST")
+
 # Setup logging
 logging.basicConfig(
     level=logging.INFO,
