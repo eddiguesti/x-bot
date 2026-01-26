@@ -153,14 +153,52 @@ class YouTubeClient:
                 api_key=api_key,
                 app_name="crypto_consensus_youtube"
             )
-            self.enabled = True
             self.raw_data_dir = settings.raw_data_dir
             self.raw_data_dir.mkdir(parents=True, exist_ok=True)
-            logger.info("YouTube client initialized via Macrocosmos")
+
+            # Test if YouTube is actually supported by the API
+            # (As of Jan 2026, Macrocosmos SN13 only supports X and Reddit)
+            self.enabled = self._test_youtube_support()
+            if self.enabled:
+                logger.info("YouTube client initialized via Macrocosmos")
+            else:
+                logger.warning("YouTube not yet supported by Macrocosmos API - client disabled")
         else:
             self.client = None
             self.enabled = False
             logger.warning("Macrocosmos API key not provided - YouTube client disabled")
+
+    def _test_youtube_support(self) -> bool:
+        """Test if the Macrocosmos API actually supports YouTube queries.
+
+        Note: As of Jan 2026, the API documentation mentions YouTube but
+        the server only accepts 'x' and 'reddit' as valid platforms.
+        This method tests the API to confirm support status.
+        """
+        try:
+            from datetime import datetime, timedelta
+            end_date = datetime.utcnow()
+            start_date = end_date - timedelta(days=1)
+
+            # Try a minimal YouTube query
+            self.client.sn13.OnDemandData(
+                source='YouTube',
+                usernames=['test'],
+                keywords=[],
+                start_date=start_date.strftime('%Y-%m-%d'),
+                end_date=end_date.strftime('%Y-%m-%d'),
+                limit=1,
+            )
+            return True
+        except Exception as e:
+            error_msg = str(e).lower()
+            # Check if the error is about platform not being supported
+            if 'invalid platform' in error_msg or 'must be one of' in error_msg:
+                logger.debug(f"YouTube platform not supported: {e}")
+                return False
+            # For other errors (rate limits, network issues), assume it might work
+            logger.debug(f"YouTube API test inconclusive: {e}")
+            return False  # Be conservative - disable if we can't confirm it works
 
     def _rate_limit(self):
         """Enforce rate limiting between API calls."""
