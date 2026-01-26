@@ -34,11 +34,13 @@ class Settings(BaseSettings):
     youtube_api_key: str = Field(default="", alias="YOUTUBE_API_KEY")
 
     # LLM APIs for signal extraction
-    # Primary: Gemini Flash (cheapest + reliable)
+    # Primary: Grok (fast, good reasoning, generous free tier)
+    grok_api_key: str = Field(default="", alias="GROK_API_KEY")
+    # Fallback 1: Gemini Flash
     gemini_api_key: str = Field(default="", alias="GEMINI_API_KEY")
-    # Fallback: DeepSeek (uses OpenAI-compatible API)
+    # Fallback 2: DeepSeek (uses OpenAI-compatible API)
     deepseek_api_key: str = Field(default="", alias="DEEPSEEK_API_KEY")
-    # LLM provider preference: "gemini", "deepseek", or "auto" (tries gemini first)
+    # LLM provider preference: "grok", "gemini", "deepseek", or "auto" (tries grok first)
     llm_provider: str = Field(default="auto", alias="LLM_PROVIDER")
 
     # Database

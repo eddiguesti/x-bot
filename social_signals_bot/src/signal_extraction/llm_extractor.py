@@ -1,4 +1,4 @@
-"""LLM-based signal extraction using Gemini Flash or DeepSeek.
+"""LLM-based signal extraction using Grok, Gemini Flash, or DeepSeek.
 
 Uses LLMs to extract trading signals from social media posts with
 better understanding of context, sarcasm, and nuance.
@@ -79,7 +79,7 @@ class LLMExtractionResponse(BaseModel):
 
 class LLMSignalExtractor:
     """
-    Extract trading signals using LLM (Gemini Flash primary, DeepSeek fallback).
+    Extract trading signals using LLM (Grok primary, Gemini/DeepSeek fallback).
 
     Much better at understanding:
     - Sarcasm and negation
@@ -90,13 +90,26 @@ class LLMSignalExtractor:
 
     def __init__(self, settings: Settings):
         self.settings = settings
+        self.grok_client = None
         self.gemini_client = None
         self.deepseek_client = None
         self._init_clients()
 
     def _init_clients(self):
         """Initialize LLM clients based on available API keys."""
-        # Try Gemini first
+        # Try Grok first (fast, good reasoning)
+        if self.settings.grok_api_key:
+            try:
+                from openai import OpenAI
+                self.grok_client = OpenAI(
+                    api_key=self.settings.grok_api_key,
+                    base_url="https://api.x.ai/v1"
+                )
+                logger.info("Grok client initialized")
+            except Exception as e:
+                logger.warning(f"Failed to initialize Grok client: {e}")
+
+        # Try Gemini as fallback
         if self.settings.gemini_api_key:
             try:
                 import google.generativeai as genai
@@ -106,7 +119,7 @@ class LLMSignalExtractor:
             except Exception as e:
                 logger.warning(f"Failed to initialize Gemini client: {e}")
 
-        # Try DeepSeek as fallback
+        # Try DeepSeek as final fallback
         if self.settings.deepseek_api_key:
             try:
                 from openai import OpenAI
@@ -118,13 +131,13 @@ class LLMSignalExtractor:
             except Exception as e:
                 logger.warning(f"Failed to initialize DeepSeek client: {e}")
 
-        if not self.gemini_client and not self.deepseek_client:
+        if not self.grok_client and not self.gemini_client and not self.deepseek_client:
             logger.warning("No LLM clients available - LLM extraction disabled")
 
     @property
     def enabled(self) -> bool:
         """Check if any LLM client is available."""
-        return self.gemini_client is not None or self.deepseek_client is not None
+        return self.grok_client is not None or self.gemini_client is not None or self.deepseek_client is not None
 
     def _retry_with_backoff(self, func, provider: str, *args, **kwargs):
         """Execute function with exponential backoff retry logic."""
@@ -146,6 +159,25 @@ class LLMSignalExtractor:
                     logger.error(f"{provider} extraction failed after {LLM_MAX_RETRIES} attempts: {e}")
 
         return None
+
+    def _extract_with_grok(self, text: str) -> Optional[LLMExtractionResponse]:
+        """Extract signal using Grok with retry logic."""
+        if not self.grok_client:
+            return None
+
+        def _call():
+            response = self.grok_client.chat.completions.create(
+                model="grok-4-fast-non-reasoning",
+                messages=[
+                    {"role": "system", "content": EXTRACTION_PROMPT},
+                    {"role": "user", "content": text}
+                ],
+                temperature=LLM_TEMPERATURE,
+                max_tokens=LLM_MAX_OUTPUT_TOKENS,
+            )
+            return self._parse_and_validate_response(response.choices[0].message.content)
+
+        return self._retry_with_backoff(_call, "Grok")
 
     def _extract_with_gemini(self, text: str) -> Optional[LLMExtractionResponse]:
         """Extract signal using Gemini Flash with retry logic."""
@@ -267,7 +299,10 @@ class LLMSignalExtractor:
         # Try based on preference
         provider = self.settings.llm_provider.lower()
 
-        if provider == "gemini" or provider == "auto":
+        if provider == "grok" or provider == "auto":
+            result = self._extract_with_grok(text)
+
+        if result is None and (provider == "gemini" or provider == "auto"):
             result = self._extract_with_gemini(text)
 
         if result is None and (provider == "deepseek" or provider == "auto"):
