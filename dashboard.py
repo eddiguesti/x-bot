@@ -1647,7 +1647,7 @@ def generate_dashboard_html(**kwargs) -> str:
                             <td>{trade.asset.value}</td>
                             <td><span class="direction-badge {dir_class}">{trade.direction.value}</span></td>
                             <td>${trade.entry_price:,.2f}</td>
-                            <td>${trade.exit_price:,.2f if trade.exit_price else 0}</td>
+                            <td>{f"${trade.exit_price:,.2f}" if trade.exit_price else "-"}</td>
                             <td><span class="trade-pnl {pnl_class}">{trade.pnl_percent:+.2f}%</span></td>
                             <td style="color: var(--text-muted);">{trade.exit_time.strftime("%m/%d %H:%M") if trade.exit_time else "-"}</td>
                         </tr>
