@@ -452,9 +452,9 @@ class RedditClient:
 
         # Fetch from r/cryptocurrency (main crypto subreddit)
         try:
-            # First keyword is the subreddit, rest are search terms
+            # First keyword is the subreddit (WITH r/ prefix!), rest are search terms
             crypto_keywords = [
-                "cryptocurrency",  # SUBREDDIT NAME (must be first)
+                "r/cryptocurrency",  # SUBREDDIT NAME (must include r/ prefix)
                 "buy", "sell", "bullish", "bearish", "long", "short"
             ]
 
@@ -480,7 +480,7 @@ class RedditClient:
         # Fetch from r/bitcoin
         try:
             btc_keywords = [
-                "bitcoin",  # SUBREDDIT NAME (must be first)
+                "r/bitcoin",  # SUBREDDIT NAME (must include r/ prefix)
                 "buy", "sell", "bullish", "bearish", "long", "short", "hodl"
             ]
 
@@ -506,7 +506,7 @@ class RedditClient:
         # Fetch from r/ethfinance (Ethereum trading)
         try:
             eth_keywords = [
-                "ethfinance",  # SUBREDDIT NAME (must be first)
+                "r/ethfinance",  # SUBREDDIT NAME (must include r/ prefix)
                 "buy", "sell", "bullish", "bearish", "long", "short"
             ]
 
@@ -532,7 +532,7 @@ class RedditClient:
         # Fetch from r/CryptoMarkets (trading focused)
         try:
             markets_keywords = [
-                "CryptoMarkets",  # SUBREDDIT NAME (must be first)
+                "r/CryptoMarkets",  # SUBREDDIT NAME (must include r/ prefix)
                 "buy", "sell", "bullish", "bearish", "breakout", "pump"
             ]
 
@@ -597,7 +597,7 @@ class RedditClient:
 
             response = self.client.sn13.OnDemandData(
                 source='Reddit',
-                keywords=["cryptocurrency", "bitcoin"],  # First = subreddit
+                keywords=["r/cryptocurrency", "bitcoin"],  # First keyword = subreddit with r/ prefix
                 start_date=start_date.strftime('%Y-%m-%d'),
                 end_date=end_date.strftime('%Y-%m-%d'),
                 limit=5,

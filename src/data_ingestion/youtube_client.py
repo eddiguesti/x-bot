@@ -126,23 +126,16 @@ class YouTubeClient:
         self._last_api_call: float = 0
         self._seen_post_ids: OrderedDict[str, None] = OrderedDict()
 
-        # Initialize Macrocosmos client
-        import os
-        api_key = settings.macrocosmos_api_key or os.getenv("MACROCOSMOS_API_KEY", "")
-
-        if api_key:
-            self.client = mc.Sn13Client(
-                api_key=api_key,
-                app_name="crypto_consensus_youtube"
-            )
-            self.enabled = True
-            self.raw_data_dir = settings.raw_data_dir
-            self.raw_data_dir.mkdir(parents=True, exist_ok=True)
-            logger.info("YouTube client initialized via Macrocosmos")
-        else:
-            self.client = None
-            self.enabled = False
-            logger.warning("Macrocosmos API key not provided - YouTube client disabled")
+        # IMPORTANT: YouTube is NOT supported by Macrocosmos SN13 API!
+        # The API only supports Twitter/X and Reddit.
+        # See: https://docs.macrocosmos.ai/developers/api-documentation/sn13-data-universe
+        self.client = None
+        self.enabled = False
+        self.raw_data_dir = settings.raw_data_dir
+        logger.warning(
+            "YouTube client DISABLED - Macrocosmos SN13 API does not support YouTube. "
+            "Only Twitter/X and Reddit are supported."
+        )
 
     def _rate_limit(self):
         """Enforce rate limiting between API calls."""
@@ -464,84 +457,12 @@ class YouTubeClient:
         Returns:
             Dict with status, method that worked, and sample data
         """
-        if not self.enabled:
-            return {"status": "disabled", "reason": "No API key"}
-
-        result = {
-            "status": "unknown",
-            "channel_query_works": False,
-            "keyword_query_works": False,
-            "raw_response_type": None,
-            "error": None,
+        # YouTube is not supported by Macrocosmos SN13 API
+        return {
+            "status": "unsupported",
+            "reason": "YouTube is NOT supported by Macrocosmos SN13 API. Only Twitter/X and Reddit are supported.",
+            "documentation": "https://docs.macrocosmos.ai/developers/api-documentation/sn13-data-universe"
         }
-
-        # Test 1: Try channel-based query
-        try:
-            end_date = datetime.utcnow()
-            start_date = end_date - timedelta(days=7)
-
-            response = self.client.sn13.OnDemandData(
-                source='YouTube',
-                usernames=["CoinBureau"],  # Known large channel
-                keywords=[],
-                start_date=start_date.strftime('%Y-%m-%d'),
-                end_date=end_date.strftime('%Y-%m-%d'),
-                limit=5,
-            )
-
-            result["raw_response_type"] = type(response).__name__
-
-            # Check if we got data
-            if hasattr(response, 'data') and response.data:
-                result["channel_query_works"] = True
-                result["channel_results"] = len(response.data)
-            elif isinstance(response, list) and response:
-                result["channel_query_works"] = True
-                result["channel_results"] = len(response)
-            elif isinstance(response, dict) and response.get('data'):
-                result["channel_query_works"] = True
-                result["channel_results"] = len(response['data'])
-            else:
-                result["channel_results"] = 0
-
-        except Exception as e:
-            result["channel_error"] = str(e)
-
-        # Test 2: Try keyword-based query
-        try:
-            response = self.client.sn13.OnDemandData(
-                source='YouTube',
-                usernames=[],
-                keywords=["bitcoin"],
-                start_date=start_date.strftime('%Y-%m-%d'),
-                end_date=end_date.strftime('%Y-%m-%d'),
-                limit=5,
-            )
-
-            if hasattr(response, 'data') and response.data:
-                result["keyword_query_works"] = True
-                result["keyword_results"] = len(response.data)
-            elif isinstance(response, list) and response:
-                result["keyword_query_works"] = True
-                result["keyword_results"] = len(response)
-            elif isinstance(response, dict) and response.get('data'):
-                result["keyword_query_works"] = True
-                result["keyword_results"] = len(response['data'])
-            else:
-                result["keyword_results"] = 0
-
-        except Exception as e:
-            result["keyword_error"] = str(e)
-
-        # Determine overall status
-        if result["channel_query_works"] or result["keyword_query_works"]:
-            result["status"] = "working"
-        elif result.get("channel_error") or result.get("keyword_error"):
-            result["status"] = "error"
-        else:
-            result["status"] = "no_data"  # API responds but returns nothing
-
-        return result
 
     def _extract_video_id(self, url: str) -> Optional[str]:
         """Extract video ID from YouTube URL."""
