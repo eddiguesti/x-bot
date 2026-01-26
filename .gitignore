@@ -20,6 +20,12 @@ data/processed/*
 data/*.db
 !data/raw/.gitkeep
 !data/processed/.gitkeep
+# Bot-specific data
+social_signals_bot/data/raw/*
+social_signals_bot/data/processed/*
+social_signals_bot/data/*.db
+!social_signals_bot/data/raw/.gitkeep
+!social_signals_bot/data/processed/.gitkeep
 
 # IDE
 .vscode/

@@ -2,5 +2,5 @@
 builder = "nixpacks"
 
 [deploy]
-startCommand = "python main.py"
+startCommand = "cd social_signals_bot && python main.py"
 restartPolicyType = "always"
