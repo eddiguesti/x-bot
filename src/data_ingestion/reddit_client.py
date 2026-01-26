@@ -331,9 +331,12 @@ class RedditClient:
                 if not text:
                     continue
 
-                # Check relevance
-                if not self._has_asset_mention(text) or not self._has_trading_signal(text):
-                    continue
+                # Check relevance - since we're querying crypto subreddits,
+                # only require trading signal keywords (asset context is implied)
+                if not self._has_trading_signal(text):
+                    # If no trading signal, at least require asset mention
+                    if not self._has_asset_mention(text):
+                        continue
 
                 # Get username
                 username = item.get('author', item.get('username', 'unknown'))
@@ -444,12 +447,41 @@ class RedditClient:
 
         all_posts = []
 
-        # Fetch with crypto keywords
+        # Macrocosmos Reddit API: FIRST keyword = subreddit name, rest = search terms
+        # We query multiple subreddits with relevant keywords
+
+        # Fetch from r/cryptocurrency (main crypto subreddit)
         try:
-            # Use BTC/ETH focused keywords first (highest volume)
+            # First keyword is the subreddit, rest are search terms
+            crypto_keywords = [
+                "cryptocurrency",  # SUBREDDIT NAME (must be first)
+                "buy", "sell", "bullish", "bearish", "long", "short"
+            ]
+
+            def _api_call_crypto():
+                return self.client.sn13.OnDemandData(
+                    source='Reddit',
+                    keywords=crypto_keywords,
+                    start_date=start_date.strftime('%Y-%m-%d'),
+                    end_date=end_date.strftime('%Y-%m-%d'),
+                    limit=limit // 4,
+                    keyword_mode='any'
+                )
+
+            response = self._retry_with_backoff(_api_call_crypto)
+            self._save_raw_response(response, "r_cryptocurrency")
+            posts = self._parse_response(response)
+            all_posts.extend(posts)
+            logger.info(f"Reddit r/cryptocurrency: {len(posts)} relevant posts")
+
+        except Exception as e:
+            logger.error(f"Error fetching Reddit r/cryptocurrency: {e}")
+
+        # Fetch from r/bitcoin
+        try:
             btc_keywords = [
-                "bitcoin", "btc", "long btc", "short btc",
-                "bullish bitcoin", "bearish bitcoin", "buy bitcoin"
+                "bitcoin",  # SUBREDDIT NAME (must be first)
+                "buy", "sell", "bullish", "bearish", "long", "short", "hodl"
             ]
 
             def _api_call_btc():
@@ -458,70 +490,70 @@ class RedditClient:
                     keywords=btc_keywords,
                     start_date=start_date.strftime('%Y-%m-%d'),
                     end_date=end_date.strftime('%Y-%m-%d'),
-                    limit=limit // 3,
+                    limit=limit // 4,
                     keyword_mode='any'
                 )
 
             response = self._retry_with_backoff(_api_call_btc)
-            self._save_raw_response(response, "btc_keywords")
+            self._save_raw_response(response, "r_bitcoin")
             posts = self._parse_response(response)
             all_posts.extend(posts)
-            logger.info(f"Reddit BTC keywords: {len(posts)} relevant posts")
+            logger.info(f"Reddit r/bitcoin: {len(posts)} relevant posts")
 
         except Exception as e:
-            logger.error(f"Error fetching Reddit BTC posts: {e}")
+            logger.error(f"Error fetching Reddit r/bitcoin: {e}")
 
-        # Fetch altcoin signals
+        # Fetch from r/ethfinance (Ethereum trading)
         try:
-            alt_keywords = [
-                "ethereum", "solana", "cardano", "altcoin",
-                "defi", "long eth", "bullish sol"
+            eth_keywords = [
+                "ethfinance",  # SUBREDDIT NAME (must be first)
+                "buy", "sell", "bullish", "bearish", "long", "short"
             ]
 
-            def _api_call_alt():
+            def _api_call_eth():
                 return self.client.sn13.OnDemandData(
                     source='Reddit',
-                    keywords=alt_keywords,
+                    keywords=eth_keywords,
                     start_date=start_date.strftime('%Y-%m-%d'),
                     end_date=end_date.strftime('%Y-%m-%d'),
-                    limit=limit // 3,
+                    limit=limit // 4,
                     keyword_mode='any'
                 )
 
-            response = self._retry_with_backoff(_api_call_alt)
-            self._save_raw_response(response, "alt_keywords")
+            response = self._retry_with_backoff(_api_call_eth)
+            self._save_raw_response(response, "r_ethfinance")
             posts = self._parse_response(response)
             all_posts.extend(posts)
-            logger.info(f"Reddit alt keywords: {len(posts)} relevant posts")
+            logger.info(f"Reddit r/ethfinance: {len(posts)} relevant posts")
 
         except Exception as e:
-            logger.error(f"Error fetching Reddit alt posts: {e}")
+            logger.error(f"Error fetching Reddit r/ethfinance: {e}")
 
-        # Fetch meme/degen signals
+        # Fetch from r/CryptoMarkets (trading focused)
         try:
-            meme_keywords = [
-                "memecoin", "shib", "pepe", "doge", "bonk",
-                "moon", "pump", "gem", "100x"
+            markets_keywords = [
+                "CryptoMarkets",  # SUBREDDIT NAME (must be first)
+                "buy", "sell", "bullish", "bearish", "breakout", "pump"
             ]
 
-            def _api_call_meme():
+            def _api_call_markets():
                 return self.client.sn13.OnDemandData(
                     source='Reddit',
-                    keywords=meme_keywords,
+                    keywords=markets_keywords,
                     start_date=start_date.strftime('%Y-%m-%d'),
                     end_date=end_date.strftime('%Y-%m-%d'),
-                    limit=limit // 3,
+                    limit=limit // 4,
                     keyword_mode='any'
                 )
 
-            response = self._retry_with_backoff(_api_call_meme)
-            self._save_raw_response(response, "meme_keywords")
+            response = self._retry_with_backoff(_api_call_markets)
+            self._save_raw_response(response, "r_cryptomarkets")
             posts = self._parse_response(response)
             all_posts.extend(posts)
-            logger.info(f"Reddit meme keywords: {len(posts)} relevant posts")
+            logger.info(f"Reddit r/CryptoMarkets: {len(posts)} relevant posts")
 
         except Exception as e:
-            logger.error(f"Error fetching Reddit meme posts: {e}")
+            logger.error(f"Error fetching Reddit r/CryptoMarkets: {e}")
 
         # Deduplicate by post_id
         seen_ids = set()

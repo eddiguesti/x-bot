@@ -40,84 +40,48 @@ class YouTubePost:
 class YouTubeClient:
     """Client for fetching YouTube crypto content via Macrocosmos SN13 API."""
 
-    # Top crypto YouTube channels to monitor (50+ channels)
+    # Top crypto YouTube channels - MUST use actual YouTube channel handles/usernames
+    # Format: @username or channel ID (not display names)
     CRYPTO_CHANNELS = [
-        # ========== MEGA INFLUENCERS (1M+ subscribers) ==========
-        "BitBoy Crypto",
-        "Coin Bureau",
-        "DataDash",
-        "Altcoin Daily",
-        "The Moon",
-        "Ivan on Tech",
-        "Lark Davis",
-        "Benjamin Cowen",
-        "Crypto Banter",
-        "Ran Neuner",
-        "InvestAnswers",
-        "Crypto Tips",
-        "EllioTrades Crypto",
+        # ========== MEGA INFLUENCERS ==========
+        "@CoinBureau",           # Coin Bureau
+        "@altaborincrypto",      # Altcoin Daily
+        "@TheMoonCarl",          # The Moon
+        "@IvanOnTech",           # Ivan on Tech
+        "@TheCryptoLark",        # Lark Davis / Crypto Lark
+        "@intaborincrypto",      # Benjamin Cowen (Into The Cryptoverse)
+        "@CryptoBanterGroup",    # Crypto Banter
+        "@InvestAnswers",        # InvestAnswers
 
         # ========== TECHNICAL ANALYSIS ==========
-        "Crypto Crew University",
-        "Sheldon The Sniper",
-        "Michaël van de Poppe",
-        "Crypto Jebb",
-        "The Crypto Lark",
-        "Trader University",
-        "The Chart Guys",
-        "Crypto Capital Venture",
-        "Rekt Capital",
-        "Bob Loukas",
+        "@CryptoCrewUniversity", # Crypto Crew University
+        "@Raboraphi",            # Michaël van de Poppe
+        "@cryptojebb",           # Crypto Jebb
+        "@RektCapital",          # Rekt Capital
+        "@CryptoCapitalVenture", # Crypto Capital Venture
 
         # ========== NEWS & EDUCATION ==========
-        "Bankless",
-        "The Defiant",
-        "Unchained Podcast",
-        "Real Vision",
-        "Anthony Pompliano",
-        "Blockworks",
-        "Messari",
-        "a]16z crypto",
-        "Delphi Digital",
+        "@Bankless",             # Bankless
+        "@TheDefiant_io",        # The Defiant
+        "@RealVisionFinance",    # Real Vision
+        "@AnthonyPompliano",     # Anthony Pompliano
+        "@BlockworksHQ",         # Blockworks
 
         # ========== DEFI & TECHNICAL ==========
-        "Finematics",
-        "Whiteboard Crypto",
-        "DeFi Dad",
-        "Patrick Collins",
-        "Smart Contract Programmer",
-        "Eat The Blocks",
+        "@Finematics",           # Finematics
+        "@WhiteboardCrypto",     # Whiteboard Crypto
+        "@PatrickAlphaC",        # Patrick Collins
 
         # ========== TRADING FOCUSED ==========
-        "Crypto Face",
-        "Davincij15",
-        "MMCrypto",
-        "Crypto Zombie",
-        "Alessio Rastani",
-        "CryptosRUs",
-        "Crypto Jebb",
-        "Digital Asset News",
-        "Crypto Michael",
-
-        # ========== SOLANA & ALT L1s ==========
-        "SolanaFloor",
-        "Solana",
-
-        # ========== MACRO & INSTITUTIONAL ==========
-        "Raoul Pal The Journey Man",
-        "Willy Woo",
-        "Plan B",
-        "Preston Pysh",
+        "@MMCrypto",             # MMCrypto
+        "@TheCryptoZombie",      # Crypto Zombie
+        "@CryptosRUs",           # CryptosRUs
+        "@DigitalAssetNews",     # Digital Asset News
 
         # ========== NEWS CHANNELS ==========
-        "CoinDesk",
-        "Cointelegraph",
-        "Bitcoin Magazine",
-        "The Block",
-
-        # ========== AI & NEW NARRATIVES ==========
-        "Matthew Berman",
-        "AI Explained",
+        "@CoinDesk",             # CoinDesk
+        "@Cointelegraph",        # Cointelegraph
+        "@BitcoinMagazine",      # Bitcoin Magazine
     ]
 
     # Trading keywords to filter relevant content
@@ -267,8 +231,9 @@ class YouTubeClient:
                 if not text.strip():
                     continue
 
-                # Check relevance
-                if not self._has_asset_mention(text) or not self._has_trading_signal(text):
+                # Check relevance - since we fetch from crypto channels,
+                # only require trading signal OR asset mention (not both)
+                if not self._has_trading_signal(text) and not self._has_asset_mention(text):
                     continue
 
                 # Get channel name
@@ -348,18 +313,26 @@ class YouTubeClient:
             logger.warning(f"Could not save raw YouTube response: {e}")
 
     def fetch_channel_videos(self, channel_name: str, limit: int = 10) -> list[YouTubePost]:
-        """Fetch recent videos from a specific YouTube channel."""
+        """Fetch recent videos from a specific YouTube channel.
+
+        Args:
+            channel_name: YouTube channel handle (e.g., "@CoinBureau" or "CoinBureau")
+            limit: Maximum number of videos to fetch
+        """
         if not self.enabled:
             return []
 
         end_date = datetime.utcnow()
         start_date = end_date - timedelta(days=7)  # Last week
 
+        # Remove @ prefix if present (API might not expect it)
+        clean_channel = channel_name.lstrip('@')
+
         try:
             def _api_call():
                 return self.client.sn13.OnDemandData(
                     source='YouTube',
-                    usernames=[channel_name],
+                    usernames=[clean_channel],
                     keywords=[],  # Keywords ignored for YouTube
                     start_date=start_date.strftime('%Y-%m-%d'),
                     end_date=end_date.strftime('%Y-%m-%d'),
@@ -367,6 +340,7 @@ class YouTubeClient:
                 )
 
             response = self._retry_with_backoff(_api_call)
+            self._save_raw_response(response, f"yt_{clean_channel}")
             return self._parse_response(response)
 
         except Exception as e:
