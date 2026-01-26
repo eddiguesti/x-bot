@@ -159,7 +159,7 @@ class XClient:
         "cameron",            # Cameron Winklevoss - 700K - Gemini
         "tyler",              # Tyler Winklevoss - 700K - Gemini
         "RaoulGMI",           # Raoul Pal - 1M - macro economist
-        "novaborogratz",      # Mike Novogratz - 500K - Galaxy Digital
+        "novogratz",         # Mike Novogratz - 500K - Galaxy Digital
         "aantonop",           # Andreas Antonopoulos - 700K - BTC educator
         "whale_alert",        # Whale Alert - 1.5M - large transactions
 
@@ -180,7 +180,7 @@ class XClient:
         "IamCryptoWolf",      # CryptoWolf - 500K - signals
         "Cobie",              # Cobie - 700K - trader/investor
         "lookonchain",        # Lookonchain - 500K - whale tracking
-        "raboroektcapital",   # Rekt Capital - 400K - TA
+        "rektcapital",      # Rekt Capital - 400K - TA
         "LarkDavis",          # Lark Davis - 500K - educator
         "IvanOnTech",         # Ivan on Tech - 400K - educator
 
@@ -212,9 +212,9 @@ class XClient:
 
         # ========== ON-CHAIN & DATA ==========
         "glassnode",          # Glassnode - 600K - on-chain
-        "santaboroimentfeed", # Santiment - 200K - on-chain
+        "santimentfeed",    # Santiment - 200K - on-chain
         "intotheblock",       # IntoTheBlock - 150K - analytics
-        "naboroansen_ai",     # Nansen - 250K - on-chain
+        "nansen_ai",        # Nansen - 250K - on-chain
         "CryptoQuant_com",    # CryptoQuant - 150K - on-chain
         "TheBlock__",         # The Block - 400K - research
         "MessariCrypto",      # Messari - 350K - research
@@ -225,7 +225,7 @@ class XClient:
         "DefiIgnas",          # Ignas - 300K - DeFi researcher
         "Defi_Dad",           # DeFi Dad - 150K - educator
         "DeFiPulse",          # DeFi Pulse - 100K - TVL
-        "bantaboroeg",        # Banteg - 150K - yearn dev
+        "banteg",        # Banteg - 150K - yearn dev
         "DefianceCapital",    # DeFiance Capital - 150K
 
         # ========== NEWS & MEDIA ==========
@@ -244,7 +244,7 @@ class XClient:
         "arbitrum",           # Arbitrum - 1M
         "optimismFND",        # Optimism - 600K
         "0xPolygon",          # Polygon - 2M
-        "avalaborancheavax",  # Avalanche - 1M
+        "avaboralancheavax",  # Avalanche - 1M
         "NEARProtocol",       # NEAR - 1M
         "Aptos",              # Aptos - 500K
         "injective",          # Injective - 600K
@@ -274,11 +274,11 @@ class XClient:
         "SOLBigBrain",        # SOL analyst - 100K
         "AltcoinBuzz",        # Altcoin Buzz - 300K
         "Boxmining",          # Boxmining - 200K
-        "skaboroewanalytics", # Skew - derivatives
+        "skaborewanalytics", # Skew - derivatives
 
         # ========== SOL ECOSYSTEM ==========
         "SolanaLegend",       # Solana trader
-        "heaborolius_io",     # Helius - SOL infra
+        "helius_io",     # Helius - SOL infra
         "JupiterExchange",    # Jupiter - DEX
         "marginfi",           # Marginfi - lending
         "phantom",            # Phantom wallet
@@ -311,7 +311,7 @@ class XClient:
         "Phyrex_Ni",          # Phyrex - Asia
         "CoinGecko",          # CoinGecko
         "binance",            # Binance official
-        "kucaboroincom",      # KuCoin
+        "kaborucoin",      # KuCoin
         "okx",                # OKX
         "Bybit_Official",     # Bybit
         "gate_io",            # Gate.io
@@ -322,7 +322,7 @@ class XClient:
         "DefiLlama",          # DeFiLlama - TVL
         "ArkhamIntel",        # Arkham - onchain
         "spotonchain",        # Spot On Chain
-        "chainaborolinaborok",# Chainlink news
+        "chainlinknews",# Chainlink news
         "LayerZero_Labs",     # LayerZero
         "eigenlayer",         # EigenLayer
 
@@ -336,10 +336,10 @@ class XClient:
         # ========== MORE MEME/DEGEN ==========
         "pumpdotfun",         # Pump.fun
         "DegenSpartan",       # Degen Spartan
-        "baboroeanie",        # Beanie
+        "beanie",        # Beanie
 
         # ========== BITCOIN MAXIS ==========
-        "daboroanheld",       # Dan Held
+        "daboranheld",       # Dan Held
         "Excellion",          # Samson Mow
         "jackmallers",        # Jack Mallers - Strike
         "hodlonaut",          # Hodlonaut
@@ -352,14 +352,14 @@ class XClient:
         "IncomeSharks",       # Income Sharks
         "newtonhq",           # Newton
         "LilMoonLambo",       # Lil Moon Lambo
-        "kraborouger_alex",   # Alex Kruger
+        "kraboruger_alex",   # Alex Kruger
         "ByzGeneral",         # Byzantine General
         "TedtalksMacro",      # Ted - macro
         "JohnEDeaton1",       # John Deaton - XRP lawyer
 
         # ========== ON-CHAIN SLEUTHS ==========
         "zachxbt",            # ZachXBT - 900K - on-chain investigator
-        "taaboroyvano",       # Taylor Monahan - security researcher
+        "taborayvano",       # Taylor Monahan - security researcher
         "EmberCN",            # Ember - 300K - on-chain alpha
         "LomahCrypto",        # Lomah - on-chain analyst
         "officer_cia",        # Officer's Blog - security
@@ -386,9 +386,9 @@ class XClient:
         # ========== AI & NEW NARRATIVES ==========
         "aixbt_agent",        # AIXBT - AI trading agent
         "truth_terminal",     # Truth Terminal - AI
-        "virtaborouals_io",   # Virtuals Protocol
+        "virtaboruals_io",   # Virtuals Protocol
         "ai16zdao",           # ai16z DAO
-        "shaboroiai",         # Shaw - AI agent dev
+        "shaboriai",         # Shaw - AI agent dev
         "0xzerebro",          # Zerebro - AI agent
 
         # ========== MORE CT ALPHA ==========
@@ -397,8 +397,8 @@ class XClient:
         "Cryptadamus",        # Cryptadamus - 100K
         "CryptoNewton",       # Newton - macro
         "CryptoGems555",      # Crypto Gems
-        "TaaboroikiMaeda",    # Taiki - 200K
-        "Crypt0Runaboroe",    # Rune - trader
+        "TaikiMaeda",    # Taiki - 200K
+        "Crypt0Rune",    # Rune - trader
         "CryptoNTez",         # NTez - signals
         "CryptoSays",         # CryptoSays - analyst
 
@@ -413,23 +413,23 @@ class XClient:
         # ========== BASE & NEW L2s ==========
         "jessepollak",        # Jesse Pollak - Base lead
         "BuildOnBase",        # Base official
-        "stabororknet",       # Starknet
-        "zaboroync",          # zkSync
+        "starknetfnd",       # Starknet
+        "zaborync",          # zkSync
         "MantaNetwork",       # Manta
         "Aboroeo_xyz",        # Aevo - derivatives
 
         # ========== MORE DEFI ==========
-        "aboroave",           # Aave official
+        "aaveaborave",           # Aave official
         "MakerDAO",           # MakerDAO
         "CurveFinance",       # Curve
         "LidoFinance",        # Lido - staking
         "RocketPool_ETH",     # Rocket Pool
-        "penaborodle_fi",     # Pendle - yield
+        "pendlefinance",     # Pendle - yield
         "HyperliquidX",       # Hyperliquid - perps
 
         # ========== EXCHANGES & INFRA ==========
         "dabororidex",        # dYdX
-        "GMaboroX_io",        # GMX
+        "gmx_io",        # GMX
         "SynFuturesDefi",     # SynFutures
         "vertex_protocol",    # Vertex
         "rabbitx_io",         # RabbitX
@@ -438,17 +438,17 @@ class XClient:
         # These accounts often call tops, shorts, and provide bearish analysis
         "CryptoCapo_",        # Capo - famous bear caller
         "il_capo_crypto",     # Il Capo - bear calls
-        "Tiaboroertradez",    # Tier - contrarian
+        "tiertrader",    # Tier - contrarian
         "Crypto_Chase",       # Chase - balanced TA
         "CharliebileltoX",    # Charlie Bilello - macro bearish
         "PeterSchiff",        # Peter Schiff - gold bug, BTC bear
         "CryptoWhale",        # Whale - calls both ways
-        "Noaboroulle",        # Nobulle - bearish analyst
+        "nobullcrypto",        # Nobulle - bearish analyst
         "CryptoSentiment",    # Sentiment - neutral data
         "fundstrat",          # Fundstrat - institutional balanced
         "MarkMinervini",      # Mark Minervini - technical, calls exits
-        "profitabororoll",    # Profit Roll - trading both sides
-        "Maboroarborotetrading", # Market trading - shorts too
+        "profitroll",    # Profit Roll - trading both sides
+        "Markettrading", # Market trading - shorts too
         "MrBenLister",        # Ben Lister - contrarian
         "HVInvest",           # HV Invest - shorts/longs
         "CryptoVizArt",       # VizArt - TA both directions
@@ -466,18 +466,18 @@ class XClient:
         # ========== MACRO SKEPTICS ==========
         "NorthmanTrader",     # Sven - macro skeptic
         "jimbianco",          # Jim Bianco - macro analyst
-        "culaborolenroche",   # Cullen Roche - balanced macro
+        "cullenroche",   # Cullen Roche - balanced macro
         "jessefelder",        # Jesse Felder - value/bear
-        "haborousaboroelpine",# Hussman - cycle analysis
-        "zaboroerohedge",     # Zerohedge - bearish news
+        "hussmanjp",# Hussman - cycle analysis
+        "zerohedge",     # Zerohedge - bearish news
 
         # ========== FUNDING & LIQUIDATION DATA ==========
         # These provide neutral/bearish signals from data
         "intotheblock",       # On-chain - neutral data
-        "santaboroimentfeed", # Santiment - sentiment data
+        "santimentfeed", # Santiment - sentiment data
         "CryptoQuant_com",    # CryptoQuant - exchange flows
-        "kingfisheraboropp",  # Kingfisher - liquidations
-        "waboroaletracaboroker", # Whale tracker - large moves
+        "kingfisher",  # Kingfisher - liquidations
+        "whaletrackers", # Whale tracker - large moves
     ]
 
     def __init__(self, settings: Settings):

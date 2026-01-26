@@ -42,30 +42,31 @@ class YouTubeClient:
 
     # Top crypto YouTube channels - MUST use actual YouTube channel handles/usernames
     # Format: @username or channel ID (not display names)
+    # Verified handles as of 2025
     CRYPTO_CHANNELS = [
         # ========== MEGA INFLUENCERS ==========
-        "@CoinBureau",           # Coin Bureau
-        "@altaborincrypto",      # Altcoin Daily
-        "@TheMoonCarl",          # The Moon
-        "@IvanOnTech",           # Ivan on Tech
-        "@TheCryptoLark",        # Lark Davis / Crypto Lark
-        "@intaborincrypto",      # Benjamin Cowen (Into The Cryptoverse)
-        "@CryptoBanterGroup",    # Crypto Banter
-        "@InvestAnswers",        # InvestAnswers
+        "@CoinBureau",           # Coin Bureau - 2.4M subs
+        "@AltcoinDaily",         # Altcoin Daily - 1.4M subs
+        "@TheMoonCarl",          # The Moon Carl - 500K subs
+        "@IvanOnTech",           # Ivan on Tech - 500K subs
+        "@TheCryptoLark",        # Lark Davis - 500K subs
+        "@intocryptoverse",      # Benjamin Cowen - 800K subs
+        "@CryptoBanter",         # Crypto Banter - 600K subs
+        "@InvestAnswers",        # InvestAnswers - 450K subs
 
         # ========== TECHNICAL ANALYSIS ==========
         "@CryptoCrewUniversity", # Crypto Crew University
-        "@Raboraphi",            # Michaël van de Poppe
+        "@CryptoMichNL",         # Michaël van de Poppe
         "@cryptojebb",           # Crypto Jebb
         "@RektCapital",          # Rekt Capital
         "@CryptoCapitalVenture", # Crypto Capital Venture
 
         # ========== NEWS & EDUCATION ==========
-        "@Bankless",             # Bankless
-        "@TheDefiant_io",        # The Defiant
-        "@RealVisionFinance",    # Real Vision
-        "@AnthonyPompliano",     # Anthony Pompliano
-        "@BlockworksHQ",         # Blockworks
+        "@BanklessHQ",           # Bankless
+        "@TheDefiant",           # The Defiant
+        "@RealVision",           # Real Vision
+        "@APompliano",           # Anthony Pompliano
+        "@Blockworks",           # Blockworks
 
         # ========== DEFI & TECHNICAL ==========
         "@Finematics",           # Finematics
@@ -79,7 +80,7 @@ class YouTubeClient:
         "@DigitalAssetNews",     # Digital Asset News
 
         # ========== NEWS CHANNELS ==========
-        "@CoinDesk",             # CoinDesk
+        "@CoinDeskTV",           # CoinDesk
         "@Cointelegraph",        # Cointelegraph
         "@BitcoinMagazine",      # Bitcoin Magazine
     ]
