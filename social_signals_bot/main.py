@@ -48,6 +48,9 @@ from src.constants import (
 # Import dashboard app
 from dashboard import app, DATA_DIR, DB_PATH
 
+# Import dashboard reporter for unified dashboard
+from src.dashboard_reporter import DashboardReporter
+
 # Setup logging
 logging.basicConfig(
     level=logging.INFO,
@@ -472,6 +475,13 @@ def run_trading_loop(interval_minutes: int = DEFAULT_TRADING_INTERVAL_MINUTES):
             strategies=list(StrategyType),
         )
 
+        # Initialize dashboard reporter for unified dashboard
+        dashboard_reporter = DashboardReporter(
+            bot_id=f"social-signals-bot-{os.getpid()}",
+            bot_name="social-signals-bot",
+            bot_type="social-signals-bot",
+        )
+
         cycle = 0
         while not shutdown_event.is_set():
             try:
@@ -520,6 +530,9 @@ def run_trading_loop(interval_minutes: int = DEFAULT_TRADING_INTERVAL_MINUTES):
                 # Step 4: Log performance summary
                 performances = runner.get_performance_summary()
                 logger.info("-" * 40)
+                total_equity = 0
+                total_pnl = 0
+                total_trades = 0
                 for st, perf in performances.items():
                     logger.info(
                         f"{st.value}: ${perf.current_balance:,.2f} "
@@ -527,6 +540,25 @@ def run_trading_loop(interval_minutes: int = DEFAULT_TRADING_INTERVAL_MINUTES):
                         f"Trades: {perf.total_trades} | "
                         f"WR: {perf.win_rate:.1%}"
                     )
+                    total_equity += perf.current_balance
+                    total_pnl += (perf.current_balance - 10000.0)
+                    total_trades += perf.total_trades
+
+                # Step 5: Report to unified dashboard
+                initial_total = 10000.0 * len(performances)
+                daily_pnl_pct = (total_pnl / initial_total) if initial_total > 0 else 0
+                dashboard_reporter.heartbeat(
+                    equity=total_equity,
+                    daily_pnl=total_pnl,
+                    daily_pnl_pct=daily_pnl_pct,
+                    open_positions=0,  # Could track this per strategy
+                    max_positions=15,  # 15 strategies
+                    extra={
+                        "strategies": len(performances),
+                        "total_trades": total_trades,
+                        "cycle": cycle,
+                    }
+                )
 
             except Exception as e:
                 logger.exception(f"Error in trading cycle: {e}")
