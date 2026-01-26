@@ -40,72 +40,66 @@ class YouTubePost:
 class YouTubeClient:
     """Client for fetching YouTube crypto content via Macrocosmos SN13 API."""
 
-    # Top 50 crypto YouTube channels - channel handles for Macrocosmos API
+    # Top 50 crypto YouTube channels - BALANCED for bull/bear/neutral views
     # Format: channel name (without @) - API strips it anyway
-    # Curated for trading signals, analysis, and market insights
+    # Curated for trading signals with sentiment diversity
     CRYPTO_CHANNELS = [
         # ========== TIER 1: MEGA INFLUENCERS (500K+ subs) ==========
-        "CoinBureau",            # Coin Bureau - 2.4M - research & analysis
+        "CoinBureau",            # Coin Bureau - 2.4M - research (neutral)
         "AltcoinDaily",          # Altcoin Daily - 1.4M - daily news
-        "BitBoysCrypto",         # BitBoy Crypto - 1.4M - news & trades
-        "intocryptoverse",       # Benjamin Cowen - 800K - macro TA
+        "intocryptoverse",       # Benjamin Cowen - 800K - macro TA (cautious)
         "CryptoBanter",          # Crypto Banter - 700K - live trading
-        "aantonop",              # Andreas Antonopoulos - 700K - BTC education
-        "DataDash",              # DataDash - 500K - TA & news
+        "DataDash",              # DataDash - 500K - TA & news (balanced)
         "TheMoonCarl",           # The Moon Carl - 500K - signals
         "IvanOnTech",            # Ivan on Tech - 500K - tech analysis
         "TheCryptoLark",         # Lark Davis - 500K - altcoins
 
-        # ========== TIER 2: TOP ANALYSTS (200K-500K) ==========
+        # ========== MACRO & SKEPTICS (Bearish/Cautious) ==========
+        "CoffeeZilla",           # Coffeezilla - 3.5M - crypto scam exposer
+        "FoldingIdeas",          # Dan Olson - 1M - crypto criticism
+        "MrBeast6000",           # Graham Stephan - 4M - balanced finance
+        "PBDPodcast",            # Patrick Bet-David - 4M - macro debates
+        "ThePlainBagel",         # Plain Bagel - 800K - skeptical finance
+        "BenFelixCSI",           # Ben Felix - 1M - rational investing
+        "TheChartGuys",          # Chart Guys - 200K - TA (calls tops)
+        "RealVision",            # Real Vision - 300K - macro (both sides)
+
+        # ========== BALANCED ANALYSTS (200K-500K) ==========
         "InvestAnswers",         # InvestAnswers - 450K - data-driven
         "CryptoJebb",            # Crypto Jebb - 400K - TA
         "CryptosRUs",            # CryptosRUs - 400K - trading
-        "Sheldon_Evans",         # Sheldon Evans - 350K - SA trader
         "CryptoCrewUniversity",  # Crypto Crew - 300K - TA education
-        "CryptoMichNL",          # Van de Poppe - 300K - TA
         "RektCapital",           # Rekt Capital - 300K - cycle analysis
-        "BenArmstrongCrypto",    # Ben Armstrong - 300K - news
         "CryptoCasey",           # Crypto Casey - 250K - education
         "EllioTrades",           # EllioTrades - 250K - gems
 
-        # ========== TIER 3: QUALITY TRADERS (100K-200K) ==========
-        "MMCrypto",              # MMCrypto - 200K - leveraged trading
-        "TheCryptoZombie",       # Crypto Zombie - 200K - altcoins
-        "DigitalAssetNews",      # DAN - 200K - daily news
-        "CryptoCapitalVenture",  # CCV - 180K - TA
-        "CryptoWendyO",          # Wendy O - 150K - trading
-        "CryptoStackers",        # Crypto Stackers - 150K - accumulation
-        "TylerSCrypto",          # Tyler S - 150K - charts
-        "JRNYCrypto",            # JRNY Crypto - 140K - long term
-        "AlexBeckerChannel",     # Alex Becker - 130K - trading
-        "CryptoBusy",            # Crypto Busy - 120K - news
+        # ========== RISK & BEAR ANALYSIS ==========
+        "CryptoFace",            # CryptoFace - 150K - liquidation tracking
+        "Trader_University",     # Trader University - 200K - risk management
+        "CryptoCapo",            # Crypto Capo - 100K - bear calls
+        "CoinsiderBTC",          # Coinsider - 100K - objective analysis
+        "cryptobanter_skeptic",  # Balanced debates
+        "TheCryptoConservative", # Conservative crypto views
 
-        # ========== NEWS & RESEARCH ==========
-        "CoinDesk",              # CoinDesk - 200K - news
+        # ========== NEWS & RESEARCH (Neutral) ==========
+        "CoinDesk",              # CoinDesk - 200K - news (neutral)
         "Cointelegraph",         # Cointelegraph - 150K - news
         "BitcoinMagazine",       # Bitcoin Magazine - 150K - BTC news
         "BanklessHQ",            # Bankless - 400K - DeFi/ETH
         "TheDefiant",            # The Defiant - 100K - DeFi news
-        "RealVision",            # Real Vision - 300K - macro
         "Blockworks",            # Blockworks - 100K - institutional
 
         # ========== DEFI & TECHNICAL ==========
         "Finematics",            # Finematics - 250K - DeFi explainers
         "WhiteboardCrypto",      # Whiteboard Crypto - 700K - education
         "PatrickAlphaC",         # Patrick Collins - 150K - dev/DeFi
-        "TaikiMaeda",            # Taiki Maeda - 100K - DeFi yields
 
-        # ========== BITCOIN FOCUSED ==========
-        "TheBitcoinExpress",     # Bitcoin Express - 100K - BTC only
-        "BTCSessions",           # BTC Sessions - 100K - BTC tutorials
-        "SimplyBitcoin",         # Simply Bitcoin - 80K - BTC news
-
-        # ========== TRADING & SIGNALS ==========
-        "CryptoKirby",           # Crypto Kirby - 100K - trading
-        "TheCryptoSniper",       # Crypto Sniper - 80K - entries
-        "CryptoPoseidonn",       # Crypto Poseidon - 70K - TA
-        "CryptoRevolution",      # Crypto Revolution - 60K - signals
+        # ========== TRADING (Both Directions) ==========
+        "MMCrypto",              # MMCrypto - 200K - leveraged (longs & shorts)
+        "CryptoCapitalVenture",  # CCV - 180K - TA (calls reversals)
         "BoxminingChannel",      # Boxmining - 250K - Asia focus
+        "CryptoKirby",           # Crypto Kirby - 100K - trading
+        "TheCryptoSniper",       # Crypto Sniper - 80K - entries/exits
     ]
 
     # Trading keywords to filter relevant content
