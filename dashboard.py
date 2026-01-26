@@ -1959,6 +1959,108 @@ async def data_sources_status():
     return results
 
 
+@app.get("/api/test-llm")
+async def test_llm_extraction():
+    """Test LLM signal extraction with sample posts.
+
+    This verifies:
+    1. Gemini API is connected
+    2. Prompt is working correctly
+    3. Signal extraction produces expected results
+    """
+    from src.config import get_settings
+    from src.signal_extraction import LLMSignalExtractor
+
+    settings = get_settings()
+    results = {
+        "timestamp": datetime.utcnow().isoformat(),
+        "llm_provider": settings.llm_provider,
+        "gemini_configured": bool(settings.gemini_api_key),
+        "deepseek_configured": bool(settings.deepseek_api_key),
+        "tests": []
+    }
+
+    # Test posts with expected outcomes
+    test_cases = [
+        {
+            "text": "BTC looking extremely bullish here, breaking out of the wedge. Loading up my long position.",
+            "expected_asset": "BTC",
+            "expected_direction": "LONG",
+        },
+        {
+            "text": "ETH about to dump hard. Bearish divergence on the 4H. Shorting this with tight stops.",
+            "expected_asset": "ETH",
+            "expected_direction": "SHORT",
+        },
+        {
+            "text": "SOL to $500 is inevitable. This is the most bullish setup I've seen in months. All in.",
+            "expected_asset": "SOL",
+            "expected_direction": "LONG",
+        },
+        {
+            "text": "Just had a nice coffee this morning. Weather is great today!",
+            "expected_asset": None,
+            "expected_direction": None,
+        },
+        {
+            "text": "BTC to 100k! NOT. This is clearly a bull trap. Shorting the top.",
+            "expected_asset": "BTC",
+            "expected_direction": "SHORT",  # Should detect sarcasm
+        },
+    ]
+
+    try:
+        extractor = LLMSignalExtractor(settings)
+        results["extractor_enabled"] = extractor.enabled
+        results["gemini_client_active"] = extractor.gemini_client is not None
+        results["deepseek_client_active"] = extractor.deepseek_client is not None
+
+        if not extractor.enabled:
+            results["status"] = "disabled"
+            results["error"] = "No LLM API keys configured"
+            return results
+
+        for i, test in enumerate(test_cases):
+            test_result = {
+                "test_num": i + 1,
+                "input_text": test["text"][:100] + "..." if len(test["text"]) > 100 else test["text"],
+                "expected_asset": test["expected_asset"],
+                "expected_direction": test["expected_direction"],
+            }
+
+            try:
+                extraction = extractor.extract(test["text"])
+                test_result["extracted_asset"] = extraction.asset.value if extraction.asset else None
+                test_result["extracted_direction"] = extraction.direction.value if extraction.direction else None
+                test_result["confidence"] = extraction.confidence
+                test_result["reasoning"] = extraction.reasoning
+
+                # Check if extraction matches expectation
+                asset_match = (test_result["extracted_asset"] == test["expected_asset"])
+                direction_match = (test_result["extracted_direction"] == test["expected_direction"])
+                test_result["asset_correct"] = asset_match
+                test_result["direction_correct"] = direction_match
+                test_result["passed"] = asset_match and direction_match
+
+            except Exception as e:
+                test_result["error"] = str(e)
+                test_result["passed"] = False
+
+            results["tests"].append(test_result)
+
+        # Summary
+        passed = sum(1 for t in results["tests"] if t.get("passed", False))
+        total = len(results["tests"])
+        results["summary"] = f"{passed}/{total} tests passed"
+        results["status"] = "working" if passed >= 3 else "partial" if passed > 0 else "failing"
+
+    except Exception as e:
+        results["status"] = "error"
+        results["error"] = str(e)
+
+    return results
+
+
 if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv("PORT", 8080))
