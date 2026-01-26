@@ -347,6 +347,36 @@ class YouTubeClient:
             logger.error(f"Error fetching YouTube channel {channel_name}: {e}")
             return []
 
+    def _fetch_by_keyword(self, keyword: str, limit: int = 20) -> list[YouTubePost]:
+        """Fetch YouTube videos by keyword search (fallback if channel-based fails).
+
+        Per Macrocosmos docs: YouTube accepts either one username OR one keyword.
+        """
+        if not self.enabled:
+            return []
+
+        end_date = datetime.utcnow()
+        start_date = end_date - timedelta(days=7)
+
+        try:
+            def _api_call():
+                return self.client.sn13.OnDemandData(
+                    source='YouTube',
+                    usernames=[],  # Empty for keyword search
+                    keywords=[keyword],  # Single keyword
+                    start_date=start_date.strftime('%Y-%m-%d'),
+                    end_date=end_date.strftime('%Y-%m-%d'),
+                    limit=limit,
+                )
+
+            response = self._retry_with_backoff(_api_call)
+            self._save_raw_response(response, f"yt_kw_{keyword}")
+            return self._parse_response(response)
+
+        except Exception as e:
+            logger.error(f"Error fetching YouTube by keyword '{keyword}': {e}")
+            return []
+
     def fetch_trading_signals(
         self,
         limit: int = 100,
@@ -354,6 +384,10 @@ class YouTubeClient:
     ) -> list[YouTubePost]:
         """
         Fetch trading signals from top crypto YouTube channels.
+
+        Strategy:
+        1. Try channel-based queries first (more targeted)
+        2. If no results, fall back to keyword search (broader)
 
         Args:
             limit: Maximum videos to fetch per channel
@@ -370,17 +404,38 @@ class YouTubeClient:
 
         all_posts = []
 
-        # Fetch from top channels (limit to avoid rate limits)
+        # Strategy 1: Fetch from top channels
         channels_to_fetch = self.CRYPTO_CHANNELS[:10]  # Top 10 channels
 
         for channel in channels_to_fetch:
             try:
                 posts = self.fetch_channel_videos(channel, limit=limit // len(channels_to_fetch))
                 all_posts.extend(posts)
-                logger.info(f"YouTube {channel}: {len(posts)} relevant videos")
+                if posts:
+                    logger.info(f"YouTube {channel}: {len(posts)} relevant videos")
             except Exception as e:
                 logger.error(f"Error fetching YouTube channel {channel}: {e}")
                 continue
+
+        # Strategy 2: Fallback to keyword search if channel-based returned nothing
+        if not all_posts:
+            logger.info("Channel-based search returned no results, trying keyword search...")
+            crypto_keywords = [
+                "bitcoin price prediction",
+                "crypto trading analysis",
+                "ethereum technical analysis",
+                "solana price",
+                "altcoin signals",
+            ]
+            for keyword in crypto_keywords[:3]:  # Limit to 3 keywords
+                try:
+                    posts = self._fetch_by_keyword(keyword, limit=limit // 3)
+                    all_posts.extend(posts)
+                    if posts:
+                        logger.info(f"YouTube keyword '{keyword}': {len(posts)} videos")
+                except Exception as e:
+                    logger.error(f"Error in keyword search: {e}")
+                    continue
 
         # Filter by time
         cutoff = datetime.utcnow() - timedelta(hours=hours_back)
