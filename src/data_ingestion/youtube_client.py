@@ -40,49 +40,72 @@ class YouTubePost:
 class YouTubeClient:
     """Client for fetching YouTube crypto content via Macrocosmos SN13 API."""
 
-    # Top crypto YouTube channels - MUST use actual YouTube channel handles/usernames
-    # Format: @username or channel ID (not display names)
-    # Verified handles as of 2025
+    # Top 50 crypto YouTube channels - channel handles for Macrocosmos API
+    # Format: channel name (without @) - API strips it anyway
+    # Curated for trading signals, analysis, and market insights
     CRYPTO_CHANNELS = [
-        # ========== MEGA INFLUENCERS ==========
-        "@CoinBureau",           # Coin Bureau - 2.4M subs
-        "@AltcoinDaily",         # Altcoin Daily - 1.4M subs
-        "@TheMoonCarl",          # The Moon Carl - 500K subs
-        "@IvanOnTech",           # Ivan on Tech - 500K subs
-        "@TheCryptoLark",        # Lark Davis - 500K subs
-        "@intocryptoverse",      # Benjamin Cowen - 800K subs
-        "@CryptoBanter",         # Crypto Banter - 600K subs
-        "@InvestAnswers",        # InvestAnswers - 450K subs
+        # ========== TIER 1: MEGA INFLUENCERS (500K+ subs) ==========
+        "CoinBureau",            # Coin Bureau - 2.4M - research & analysis
+        "AltcoinDaily",          # Altcoin Daily - 1.4M - daily news
+        "BitBoysCrypto",         # BitBoy Crypto - 1.4M - news & trades
+        "intocryptoverse",       # Benjamin Cowen - 800K - macro TA
+        "CryptoBanter",          # Crypto Banter - 700K - live trading
+        "aantonop",              # Andreas Antonopoulos - 700K - BTC education
+        "DataDash",              # DataDash - 500K - TA & news
+        "TheMoonCarl",           # The Moon Carl - 500K - signals
+        "IvanOnTech",            # Ivan on Tech - 500K - tech analysis
+        "TheCryptoLark",         # Lark Davis - 500K - altcoins
 
-        # ========== TECHNICAL ANALYSIS ==========
-        "@CryptoCrewUniversity", # Crypto Crew University
-        "@CryptoMichNL",         # Michaël van de Poppe
-        "@cryptojebb",           # Crypto Jebb
-        "@RektCapital",          # Rekt Capital
-        "@CryptoCapitalVenture", # Crypto Capital Venture
+        # ========== TIER 2: TOP ANALYSTS (200K-500K) ==========
+        "InvestAnswers",         # InvestAnswers - 450K - data-driven
+        "CryptoJebb",            # Crypto Jebb - 400K - TA
+        "CryptosRUs",            # CryptosRUs - 400K - trading
+        "Sheldon_Evans",         # Sheldon Evans - 350K - SA trader
+        "CryptoCrewUniversity",  # Crypto Crew - 300K - TA education
+        "CryptoMichNL",          # Van de Poppe - 300K - TA
+        "RektCapital",           # Rekt Capital - 300K - cycle analysis
+        "BenArmstrongCrypto",    # Ben Armstrong - 300K - news
+        "CryptoCasey",           # Crypto Casey - 250K - education
+        "EllioTrades",           # EllioTrades - 250K - gems
 
-        # ========== NEWS & EDUCATION ==========
-        "@BanklessHQ",           # Bankless
-        "@TheDefiant",           # The Defiant
-        "@RealVision",           # Real Vision
-        "@APompliano",           # Anthony Pompliano
-        "@Blockworks",           # Blockworks
+        # ========== TIER 3: QUALITY TRADERS (100K-200K) ==========
+        "MMCrypto",              # MMCrypto - 200K - leveraged trading
+        "TheCryptoZombie",       # Crypto Zombie - 200K - altcoins
+        "DigitalAssetNews",      # DAN - 200K - daily news
+        "CryptoCapitalVenture",  # CCV - 180K - TA
+        "CryptoWendyO",          # Wendy O - 150K - trading
+        "CryptoStackers",        # Crypto Stackers - 150K - accumulation
+        "TylerSCrypto",          # Tyler S - 150K - charts
+        "JRNYCrypto",            # JRNY Crypto - 140K - long term
+        "AlexBeckerChannel",     # Alex Becker - 130K - trading
+        "CryptoBusy",            # Crypto Busy - 120K - news
+
+        # ========== NEWS & RESEARCH ==========
+        "CoinDesk",              # CoinDesk - 200K - news
+        "Cointelegraph",         # Cointelegraph - 150K - news
+        "BitcoinMagazine",       # Bitcoin Magazine - 150K - BTC news
+        "BanklessHQ",            # Bankless - 400K - DeFi/ETH
+        "TheDefiant",            # The Defiant - 100K - DeFi news
+        "RealVision",            # Real Vision - 300K - macro
+        "Blockworks",            # Blockworks - 100K - institutional
 
         # ========== DEFI & TECHNICAL ==========
-        "@Finematics",           # Finematics
-        "@WhiteboardCrypto",     # Whiteboard Crypto
-        "@PatrickAlphaC",        # Patrick Collins
+        "Finematics",            # Finematics - 250K - DeFi explainers
+        "WhiteboardCrypto",      # Whiteboard Crypto - 700K - education
+        "PatrickAlphaC",         # Patrick Collins - 150K - dev/DeFi
+        "TaikiMaeda",            # Taiki Maeda - 100K - DeFi yields
 
-        # ========== TRADING FOCUSED ==========
-        "@MMCrypto",             # MMCrypto
-        "@TheCryptoZombie",      # Crypto Zombie
-        "@CryptosRUs",           # CryptosRUs
-        "@DigitalAssetNews",     # Digital Asset News
+        # ========== BITCOIN FOCUSED ==========
+        "TheBitcoinExpress",     # Bitcoin Express - 100K - BTC only
+        "BTCSessions",           # BTC Sessions - 100K - BTC tutorials
+        "SimplyBitcoin",         # Simply Bitcoin - 80K - BTC news
 
-        # ========== NEWS CHANNELS ==========
-        "@CoinDeskTV",           # CoinDesk
-        "@Cointelegraph",        # Cointelegraph
-        "@BitcoinMagazine",      # Bitcoin Magazine
+        # ========== TRADING & SIGNALS ==========
+        "CryptoKirby",           # Crypto Kirby - 100K - trading
+        "TheCryptoSniper",       # Crypto Sniper - 80K - entries
+        "CryptoPoseidonn",       # Crypto Poseidon - 70K - TA
+        "CryptoRevolution",      # Crypto Revolution - 60K - signals
+        "BoxminingChannel",      # Boxmining - 250K - Asia focus
     ]
 
     # Trading keywords to filter relevant content
@@ -406,15 +429,17 @@ class YouTubeClient:
 
         all_posts = []
 
-        # Strategy 1: Fetch from top channels
-        channels_to_fetch = self.CRYPTO_CHANNELS[:10]  # Top 10 channels
+        # Strategy 1: Fetch from channels (one API call per channel)
+        # Use top 25 channels to balance coverage vs API calls
+        channels_to_fetch = self.CRYPTO_CHANNELS[:25]
+        videos_per_channel = max(5, limit // len(channels_to_fetch))
 
         for channel in channels_to_fetch:
             try:
-                posts = self.fetch_channel_videos(channel, limit=limit // len(channels_to_fetch))
+                posts = self.fetch_channel_videos(channel, limit=videos_per_channel)
                 all_posts.extend(posts)
                 if posts:
-                    logger.info(f"YouTube {channel}: {len(posts)} relevant videos")
+                    logger.info(f"YouTube {channel}: {len(posts)} videos")
             except Exception as e:
                 logger.error(f"Error fetching YouTube channel {channel}: {e}")
                 continue
