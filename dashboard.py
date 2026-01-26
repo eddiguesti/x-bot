@@ -1904,6 +1904,61 @@ async def health():
     }
 
 
+@app.get("/api/data-sources")
+async def data_sources_status():
+    """Test all data source connections and return diagnostic info.
+
+    This helps identify if YouTube/Reddit APIs are actually working.
+    """
+    from src.config import get_settings
+    from src.data_ingestion import XClient, RedditClient, YouTubeClient
+
+    settings = get_settings()
+    results = {
+        "timestamp": datetime.utcnow().isoformat(),
+        "sources": {}
+    }
+
+    # Test Twitter/X
+    try:
+        x_client = XClient(settings)
+        results["sources"]["twitter"] = {
+            "status": "enabled" if x_client.client else "disabled",
+            "traders_count": len(x_client.TOP_CRYPTO_TRADERS),
+        }
+    except Exception as e:
+        results["sources"]["twitter"] = {"status": "error", "error": str(e)}
+
+    # Test Reddit
+    try:
+        reddit_client = RedditClient(settings)
+        if reddit_client.enabled:
+            results["sources"]["reddit"] = reddit_client.test_connection()
+        else:
+            results["sources"]["reddit"] = {"status": "disabled", "reason": "No API key"}
+    except Exception as e:
+        results["sources"]["reddit"] = {"status": "error", "error": str(e)}
+
+    # Test YouTube
+    try:
+        youtube_client = YouTubeClient(settings)
+        if youtube_client.enabled:
+            results["sources"]["youtube"] = youtube_client.test_connection()
+        else:
+            results["sources"]["youtube"] = {"status": "disabled", "reason": "No API key"}
+    except Exception as e:
+        results["sources"]["youtube"] = {"status": "error", "error": str(e)}
+
+    # Overall status
+    working_sources = sum(
+        1 for s in results["sources"].values()
+        if s.get("status") in ("working", "enabled")
+    )
+    results["overall"] = f"{working_sources}/3 sources working"
+
+    return results
+
+
 if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv("PORT", 8080))

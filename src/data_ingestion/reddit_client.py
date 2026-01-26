@@ -578,3 +578,50 @@ class RedditClient:
         """Reset seen posts cache."""
         self._seen_post_ids.clear()
         logger.info("Reset Reddit client state")
+
+    def test_connection(self) -> dict:
+        """Test if Reddit API is working and return diagnostic info."""
+        if not self.enabled:
+            return {"status": "disabled", "reason": "No API key"}
+
+        result = {
+            "status": "unknown",
+            "query_works": False,
+            "raw_response_type": None,
+            "error": None,
+        }
+
+        try:
+            end_date = datetime.utcnow()
+            start_date = end_date - timedelta(days=1)
+
+            response = self.client.sn13.OnDemandData(
+                source='Reddit',
+                keywords=["cryptocurrency", "bitcoin"],  # First = subreddit
+                start_date=start_date.strftime('%Y-%m-%d'),
+                end_date=end_date.strftime('%Y-%m-%d'),
+                limit=5,
+                keyword_mode='any'
+            )
+
+            result["raw_response_type"] = type(response).__name__
+
+            if hasattr(response, 'data') and response.data:
+                result["query_works"] = True
+                result["results"] = len(response.data)
+            elif isinstance(response, list) and response:
+                result["query_works"] = True
+                result["results"] = len(response)
+            elif isinstance(response, dict) and response.get('data'):
+                result["query_works"] = True
+                result["results"] = len(response['data'])
+            else:
+                result["results"] = 0
+
+            result["status"] = "working" if result["query_works"] else "no_data"
+
+        except Exception as e:
+            result["status"] = "error"
+            result["error"] = str(e)
+
+        return result
