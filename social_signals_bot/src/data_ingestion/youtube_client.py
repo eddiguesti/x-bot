@@ -1,7 +1,9 @@
-"""YouTube client for fetching crypto trading signals via Macrocosmos.
+"""YouTube client for fetching crypto trading signals via YouTube Data API.
 
-Uses the Macrocosmos SN13 API with source='YouTube'.
-Fetches from top crypto YouTube channels for sentiment and signals.
+Uses the official YouTube Data API v3 to fetch recent videos from crypto channels,
+then uses youtube-transcript-api for transcripts.
+
+Quota-efficient: ~51 units per cycle for 50 channels (free tier: 10,000/day).
 """
 
 import json
@@ -10,10 +12,11 @@ import math
 import time
 from collections import OrderedDict
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Optional, Dict, List
 from dataclasses import dataclass
 
-import macrocosmos as mc
+from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
 
 from ..config import Settings
 from ..constants import SEEN_POSTS_CACHE_MAX_SIZE, SEEN_POSTS_CACHE_TRIM_SIZE
@@ -23,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class YouTubePost:
-    """Parsed YouTube video/comment data."""
+    """Parsed YouTube video data."""
     post_id: str
     username: str  # Channel name
     text: str  # Title + description (+ transcript if available)
@@ -38,68 +41,76 @@ class YouTubePost:
 
 
 class YouTubeClient:
-    """Client for fetching YouTube crypto content via Macrocosmos SN13 API."""
+    """Client for fetching YouTube crypto content via YouTube Data API v3."""
 
     # Top 50 crypto YouTube channels - BALANCED for bull/bear/neutral views
-    # Format: channel name (without @) - API strips it anyway
-    # Curated for trading signals with sentiment diversity
+    # Format: (channel_handle, channel_id) - we need IDs for API calls
+    # Channel IDs can be found at: youtube.com/channel/CHANNEL_ID
     CRYPTO_CHANNELS = [
         # ========== TIER 1: MEGA INFLUENCERS (500K+ subs) ==========
-        "CoinBureau",            # Coin Bureau - 2.4M - research (neutral)
-        "AltcoinDaily",          # Altcoin Daily - 1.4M - daily news
-        "intocryptoverse",       # Benjamin Cowen - 800K - macro TA (cautious)
-        "CryptoBanter",          # Crypto Banter - 700K - live trading
-        "DataDash",              # DataDash - 500K - TA & news (balanced)
-        "TheMoonCarl",           # The Moon Carl - 500K - signals
-        "IvanOnTech",            # Ivan on Tech - 500K - tech analysis
-        "TheCryptoLark",         # Lark Davis - 500K - altcoins
+        ("CoinBureau", "UCqK_GSMbpiV8spgD3ZGloSw"),
+        ("AltcoinDaily", "UCbLhGKVY-bJPcawebgtNfbw"),
+        ("intocryptoverse", "UCRvqjQPSeaWn-uEx-w0XOIg"),  # Benjamin Cowen
+        ("CryptoBanter", "UCN9Nj4tjXbVTLYWN0EKly_Q"),
+        ("DataDash", "UCCatR7nWbYrkVXdxXb4cGXw"),
+        ("TheMoonCarl", "UCc4Rz_T9Sb1w5rqqo9pL1Og"),
+        ("IvanOnTech", "UCrYmtJBtLdtm2ov84ulV-yg"),
+        ("TheCryptoLark", "UCl2oCaw8hdR_kbqyqd2klIA"),  # Lark Davis
 
         # ========== MACRO & SKEPTICS (Bearish/Cautious) ==========
-        "CoffeeZilla",           # Coffeezilla - 3.5M - crypto scam exposer
-        "FoldingIdeas",          # Dan Olson - 1M - crypto criticism
-        "MrBeast6000",           # Graham Stephan - 4M - balanced finance
-        "PBDPodcast",            # Patrick Bet-David - 4M - macro debates
-        "ThePlainBagel",         # Plain Bagel - 800K - skeptical finance
-        "BenFelixCSI",           # Ben Felix - 1M - rational investing
-        "TheChartGuys",          # Chart Guys - 200K - TA (calls tops)
-        "RealVision",            # Real Vision - 300K - macro (both sides)
+        ("CoffeeZilla", "UCFQMnBA3CS502aghlcr0_aw"),
+        ("FoldingIdeas", "UCyNtlmLB73-7gtlBz00XOQQ"),  # Dan Olson
+        ("TheGrahamStephanShow", "UCa-ckhlKL98F8YXKQ-BALiw"),  # Graham Stephan
+        ("PBDPodcast", "UCGX7nGXpz-CmO_Arg-cgJ7A"),  # Patrick Bet-David
+        ("ThePlainBagel", "UCFCEuCsyWP0YkP3CZ3Mr01Q"),
+        ("BenFelixCSI", "UCDXTQ8nWmx_EhZ2v-kp7QxA"),
+        ("TheChartGuys", "UC94jsP7Dl0aKo0SLNje3R4w"),
+        ("RealVision", "UCVDN9demk6_gqsn3JMDT6JQ"),
 
         # ========== BALANCED ANALYSTS (200K-500K) ==========
-        "InvestAnswers",         # InvestAnswers - 450K - data-driven
-        "CryptoJebb",            # Crypto Jebb - 400K - TA
-        "CryptosRUs",            # CryptosRUs - 400K - trading
-        "CryptoCrewUniversity",  # Crypto Crew - 300K - TA education
-        "RektCapital",           # Rekt Capital - 300K - cycle analysis
-        "CryptoCasey",           # Crypto Casey - 250K - education
-        "EllioTrades",           # EllioTrades - 250K - gems
+        ("InvestAnswers", "UClgJyzwGs-GyaNxUHcLZrkg"),
+        ("CryptoJebb", "UCviqt9sVw7W6zJIi8eL9_rg"),
+        ("CryptosRUs", "UCHop-jpf-huVT1IYw79ymPw"),
+        ("CryptoCrewUniversity", "UCE9ODjNIkOHrnSdkYWLfYhg"),
+        ("RektCapital", "UCpAd_cSGKPaXn7cBvaaBHuQ"),
+        ("CryptoCasey", "UCmLyH9DUSmBkjMkWeXUxO0A"),
+        ("EllioTrades", "UCMtJYS0PrtiUwlk6zjGDDKQ"),
 
         # ========== RISK & BEAR ANALYSIS ==========
-        "CryptoFace",            # CryptoFace - 150K - liquidation tracking
-        "Trader_University",     # Trader University - 200K - risk management
-        "CryptoCapo",            # Crypto Capo - 100K - bear calls
-        "CoinsiderBTC",          # Coinsider - 100K - objective analysis
-        "cryptobanter_skeptic",  # Balanced debates
-        "TheCryptoConservative", # Conservative crypto views
+        ("CryptoFace", "UCR5CvqXcoZJRjM8VFM55lLA"),
+        ("TraderUniversity", "UCnV6jZ3SXmqhHpz3gVPZBkA"),
+        ("CryptoCapo", "UCc_FKQjL5AqD0Op90Erjqzg"),
+        ("Coinsider", "UCi7egjf0JDHuhznWugXq4hA"),
 
         # ========== NEWS & RESEARCH (Neutral) ==========
-        "CoinDesk",              # CoinDesk - 200K - news (neutral)
-        "Cointelegraph",         # Cointelegraph - 150K - news
-        "BitcoinMagazine",       # Bitcoin Magazine - 150K - BTC news
-        "BanklessHQ",            # Bankless - 400K - DeFi/ETH
-        "TheDefiant",            # The Defiant - 100K - DeFi news
-        "Blockworks",            # Blockworks - 100K - institutional
+        ("CoinDesk", "UCwgLmyAHfp4q82KPwFU4PLQ"),
+        ("Cointelegraph", "UCRqBu-grVX1p97WaX3KCssA"),
+        ("BitcoinMagazine", "UCnibZvJWnS2bQ0RLlEgM78Q"),
+        ("BanklessHQ", "UCAl9Ld79qaZxp9JzEOwd3aA"),
+        ("TheDefiant", "UCL0J4MLEdLP0-UyLu0hCktg"),
+        ("Blockworks", "UC59KbPSYj-IsqMgFrAQdapg"),
 
         # ========== DEFI & TECHNICAL ==========
-        "Finematics",            # Finematics - 250K - DeFi explainers
-        "WhiteboardCrypto",      # Whiteboard Crypto - 700K - education
-        "PatrickAlphaC",         # Patrick Collins - 150K - dev/DeFi
+        ("Finematics", "UCh1ob28ceGdqohUnR7vBACA"),
+        ("WhiteboardCrypto", "UCsYYksPHiGqXHPoHI-fm5sg"),
+        ("PatrickAlphaC", "UCn-3f8tw_E1jZvhuHatROwA"),  # Patrick Collins
 
         # ========== TRADING (Both Directions) ==========
-        "MMCrypto",              # MMCrypto - 200K - leveraged (longs & shorts)
-        "CryptoCapitalVenture",  # CCV - 180K - TA (calls reversals)
-        "BoxminingChannel",      # Boxmining - 250K - Asia focus
-        "CryptoKirby",           # Crypto Kirby - 100K - trading
-        "TheCryptoSniper",       # Crypto Sniper - 80K - entries/exits
+        ("MMCrypto", "UCzfyxhFgllSGIg-LmUktJig"),
+        ("CryptoCapitalVenture", "UCXJ4a_lJaf-rPmoCQBE9rvw"),
+        ("Boxmining", "UCxODjeUwZHk3p-7TU-IsDOA"),
+        ("CryptoKirby", "UCMtJYS0PrtiUwlk6zjGDDKQ"),
+        ("TheCryptoSniper", "UCb3_5ZCPYdrQmqzSJd9LUww"),
+
+        # ========== ADDITIONAL CHANNELS ==========
+        ("aantonop", "UCJWCJCWOxBYSi5DhCieLOLQ"),  # Andreas Antonopoulos
+        ("TechLead", "UC4xKdmAXFh4ACyhpiQ_3qBg"),
+        ("SatoshiStacker", "UCLWOd8Qz-tQ2-hRoNw0IvZw"),
+        ("DigitalAssetNews", "UCJgHxpqfhWEEjYQu0YQhSFg"),
+        ("TheCryptoZombie", "UCiUnrCUGCJTCC7KjuW493Ww"),
+        ("TokenMetrics", "UCu4K4Tqv2CBX1qyJxthMfHA"),
+        ("CoinGecko", "UC1wSPt1KTe_pYYakWEh3Y9Q"),
+        ("BitBoy", "UCjemQfjaXAzA-95RKoy9n_g"),  # Ben Armstrong
     ]
 
     # Trading keywords to filter relevant content
@@ -134,7 +145,7 @@ class YouTubeClient:
     }
 
     # Rate limiting
-    MIN_REQUEST_INTERVAL = 1.0
+    MIN_REQUEST_INTERVAL = 0.1  # YouTube API is fast
     MAX_RETRIES = 3
     RETRY_BASE_DELAY = 2.0
 
@@ -142,63 +153,27 @@ class YouTubeClient:
         self.settings = settings
         self._last_api_call: float = 0
         self._seen_post_ids: OrderedDict[str, None] = OrderedDict()
+        self._channel_upload_playlists: Dict[str, str] = {}  # Cache channel -> uploads playlist ID
 
-        # Initialize Macrocosmos client for YouTube
-        # Note: YouTube requires ONE channel name per request, keywords must be empty
+        # Initialize YouTube Data API client
         import os
-        api_key = settings.macrocosmos_api_key or os.getenv("MACROCOSMOS_API_KEY", "")
+        api_key = settings.youtube_api_key or os.getenv("YOUTUBE_API_KEY", "")
 
         if api_key:
-            self.client = mc.Sn13Client(
-                api_key=api_key,
-                app_name="crypto_consensus_youtube"
-            )
-            self.raw_data_dir = settings.raw_data_dir
-            self.raw_data_dir.mkdir(parents=True, exist_ok=True)
-
-            # Test if YouTube is actually supported by the API
-            # (As of Jan 2026, Macrocosmos SN13 only supports X and Reddit)
-            self.enabled = self._test_youtube_support()
-            if self.enabled:
-                logger.info("YouTube client initialized via Macrocosmos")
-            else:
-                logger.warning("YouTube not yet supported by Macrocosmos API - client disabled")
+            try:
+                self.youtube = build('youtube', 'v3', developerKey=api_key)
+                self.enabled = True
+                self.raw_data_dir = settings.raw_data_dir
+                self.raw_data_dir.mkdir(parents=True, exist_ok=True)
+                logger.info(f"YouTube client initialized with {len(self.CRYPTO_CHANNELS)} channels")
+            except Exception as e:
+                logger.error(f"Failed to initialize YouTube API client: {e}")
+                self.youtube = None
+                self.enabled = False
         else:
-            self.client = None
+            self.youtube = None
             self.enabled = False
-            logger.warning("Macrocosmos API key not provided - YouTube client disabled")
-
-    def _test_youtube_support(self) -> bool:
-        """Test if the Macrocosmos API actually supports YouTube queries.
-
-        Note: As of Jan 2026, the API documentation mentions YouTube but
-        the server only accepts 'x' and 'reddit' as valid platforms.
-        This method tests the API to confirm support status.
-        """
-        try:
-            from datetime import datetime, timedelta
-            end_date = datetime.utcnow()
-            start_date = end_date - timedelta(days=1)
-
-            # Try a minimal YouTube query
-            self.client.sn13.OnDemandData(
-                source='YouTube',
-                usernames=['test'],
-                keywords=[],
-                start_date=start_date.strftime('%Y-%m-%d'),
-                end_date=end_date.strftime('%Y-%m-%d'),
-                limit=1,
-            )
-            return True
-        except Exception as e:
-            error_msg = str(e).lower()
-            # Check if the error is about platform not being supported
-            if 'invalid platform' in error_msg or 'must be one of' in error_msg:
-                logger.debug(f"YouTube platform not supported: {e}")
-                return False
-            # For other errors (rate limits, network issues), assume it might work
-            logger.debug(f"YouTube API test inconclusive: {e}")
-            return False  # Be conservative - disable if we can't confirm it works
+            logger.warning("YOUTUBE_API_KEY not provided - YouTube client disabled")
 
     def _rate_limit(self):
         """Enforce rate limiting between API calls."""
@@ -207,27 +182,76 @@ class YouTubeClient:
             time.sleep(self.MIN_REQUEST_INTERVAL - elapsed)
         self._last_api_call = time.time()
 
-    def _retry_with_backoff(self, func, *args, **kwargs):
-        """Execute function with exponential backoff retry logic."""
-        last_exception = None
+    def _get_uploads_playlist_id(self, channel_id: str) -> Optional[str]:
+        """Get the uploads playlist ID for a channel (cached)."""
+        if channel_id in self._channel_upload_playlists:
+            return self._channel_upload_playlists[channel_id]
 
-        for attempt in range(self.MAX_RETRIES):
+        try:
+            self._rate_limit()
+            response = self.youtube.channels().list(
+                part='contentDetails',
+                id=channel_id
+            ).execute()
+
+            if response.get('items'):
+                playlist_id = response['items'][0]['contentDetails']['relatedPlaylists']['uploads']
+                self._channel_upload_playlists[channel_id] = playlist_id
+                return playlist_id
+        except HttpError as e:
+            logger.warning(f"Failed to get uploads playlist for {channel_id}: {e}")
+        except Exception as e:
+            logger.warning(f"Error getting uploads playlist: {e}")
+
+        return None
+
+    def _get_recent_video_ids(self, playlist_id: str, max_results: int = 5) -> List[str]:
+        """Get recent video IDs from a playlist."""
+        try:
+            self._rate_limit()
+            response = self.youtube.playlistItems().list(
+                part='contentDetails',
+                playlistId=playlist_id,
+                maxResults=max_results
+            ).execute()
+
+            video_ids = []
+            for item in response.get('items', []):
+                video_id = item['contentDetails']['videoId']
+                video_ids.append(video_id)
+
+            return video_ids
+        except HttpError as e:
+            logger.warning(f"Failed to get videos from playlist {playlist_id}: {e}")
+        except Exception as e:
+            logger.warning(f"Error getting playlist videos: {e}")
+
+        return []
+
+    def _get_video_details(self, video_ids: List[str]) -> List[dict]:
+        """Get video details for multiple videos (batched, 1 unit per 50 videos)."""
+        if not video_ids:
+            return []
+
+        all_videos = []
+
+        # Batch in groups of 50 (API limit)
+        for i in range(0, len(video_ids), 50):
+            batch = video_ids[i:i + 50]
             try:
                 self._rate_limit()
-                return func(*args, **kwargs)
-            except Exception as e:
-                last_exception = e
-                if attempt < self.MAX_RETRIES - 1:
-                    delay = self.RETRY_BASE_DELAY * (2 ** attempt)
-                    logger.warning(
-                        f"YouTube API call failed (attempt {attempt + 1}/{self.MAX_RETRIES}): {e}. "
-                        f"Retrying in {delay:.1f}s..."
-                    )
-                    time.sleep(delay)
-                else:
-                    logger.error(f"YouTube API call failed after {self.MAX_RETRIES} attempts: {e}")
+                response = self.youtube.videos().list(
+                    part='snippet,statistics',
+                    id=','.join(batch)
+                ).execute()
 
-        raise last_exception if last_exception else Exception("Unknown error")
+                all_videos.extend(response.get('items', []))
+            except HttpError as e:
+                logger.warning(f"Failed to get video details: {e}")
+            except Exception as e:
+                logger.warning(f"Error getting video details: {e}")
+
+        return all_videos
 
     def _calculate_engagement_score(self, views: int, likes: int, comments: int) -> float:
         """Calculate engagement score for a video."""
@@ -254,114 +278,67 @@ class YouTubeClient:
                 return True
         return False
 
-    def _parse_response(self, response) -> list[YouTubePost]:
-        """Parse Macrocosmos API response into YouTubePost objects."""
-        posts = []
+    def _parse_video(self, video: dict, channel_name: str) -> Optional[YouTubePost]:
+        """Parse a video API response into a YouTubePost."""
+        try:
+            video_id = video['id']
 
-        # Handle different response formats
-        if hasattr(response, 'data'):
-            data = response.data
-        elif isinstance(response, dict):
-            data = response.get('data', [])
-        elif isinstance(response, list):
-            data = response
-        else:
-            logger.warning(f"Unknown response format: {type(response)}")
-            return []
+            # Skip if already seen
+            if video_id in self._seen_post_ids:
+                return None
+            self._seen_post_ids[video_id] = None
 
-        if not data:
-            return []
+            snippet = video.get('snippet', {})
+            stats = video.get('statistics', {})
 
-        for item in data:
+            # Get text content
+            title = snippet.get('title', '')
+            description = snippet.get('description', '')
+            text = f"{title}\n{description}"
+
+            if not text.strip():
+                return None
+
+            # Check relevance - require trading signal OR asset mention
+            if not self._has_trading_signal(text) and not self._has_asset_mention(text):
+                return None
+
+            # Parse timestamp
+            published_at = snippet.get('publishedAt', '')
             try:
-                # Skip if already seen
-                post_id = str(item.get('id', item.get('video_id', '')))
-                if post_id in self._seen_post_ids:
-                    continue
-                self._seen_post_ids[post_id] = None
+                posted_at = datetime.strptime(published_at, '%Y-%m-%dT%H:%M:%SZ')
+            except:
+                posted_at = datetime.utcnow()
 
-                # Get text content (title + description)
-                title = item.get('title', '')
-                description = item.get('description', item.get('text', ''))
-                text = f"{title}\n{description}"
+            # Engagement metrics
+            views = int(stats.get('viewCount', 0) or 0)
+            likes = int(stats.get('likeCount', 0) or 0)
+            comments = int(stats.get('commentCount', 0) or 0)
 
-                if not text.strip():
-                    continue
+            return YouTubePost(
+                post_id=video_id,
+                username=channel_name,
+                text=text,
+                posted_at=posted_at,
+                url=f"https://www.youtube.com/watch?v={video_id}",
+                views=views,
+                likes=likes,
+                comments=comments,
+                engagement_score=self._calculate_engagement_score(views, likes, comments),
+                raw_data=video,
+            )
 
-                # Check relevance - since we fetch from crypto channels,
-                # only require trading signal OR asset mention (not both)
-                if not self._has_trading_signal(text) and not self._has_asset_mention(text):
-                    continue
+        except Exception as e:
+            logger.warning(f"Error parsing video: {e}")
+            return None
 
-                # Get channel name
-                channel = item.get('channel', item.get('username', item.get('author', 'unknown')))
-
-                # Get URL
-                url = item.get('url', item.get('uri', ''))
-
-                # Parse timestamp
-                timestamp = item.get('datetime', item.get('published_at', item.get('timestamp')))
-                posted_at = self._parse_timestamp(timestamp)
-
-                # Engagement metrics
-                views = int(item.get('view_count', item.get('views', 0)) or 0)
-                likes = int(item.get('like_count', item.get('likes', 0)) or 0)
-                comments = int(item.get('comment_count', item.get('comments', 0)) or 0)
-
-                post = YouTubePost(
-                    post_id=post_id,
-                    username=channel,
-                    text=text,
-                    posted_at=posted_at,
-                    url=url,
-                    views=views,
-                    likes=likes,
-                    comments=comments,
-                    engagement_score=self._calculate_engagement_score(views, likes, comments),
-                )
-                posts.append(post)
-
-            except Exception as e:
-                logger.warning(f"Error parsing YouTube post: {e}")
-                continue
-
-        return posts
-
-    def _parse_timestamp(self, ts) -> datetime:
-        """Parse various timestamp formats."""
-        if isinstance(ts, datetime):
-            return ts
-        if isinstance(ts, (int, float)):
-            if ts > 1e12:
-                return datetime.fromtimestamp(ts / 1000)
-            return datetime.fromtimestamp(ts)
-        if isinstance(ts, str):
-            for fmt in [
-                '%Y-%m-%dT%H:%M:%SZ',
-                '%Y-%m-%dT%H:%M:%S.%fZ',
-                '%Y-%m-%d %H:%M:%S',
-                '%Y-%m-%d',
-            ]:
-                try:
-                    return datetime.strptime(ts, fmt)
-                except ValueError:
-                    continue
-        return datetime.utcnow()
-
-    def _save_raw_response(self, response, context: str):
+    def _save_raw_response(self, data: list, context: str):
         """Save raw API response for audit trail."""
         timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
         filename = f"youtube_posts_{timestamp}_{context[:30]}.json"
         filepath = self.raw_data_dir / filename
 
         try:
-            if hasattr(response, 'model_dump'):
-                data = response.model_dump()
-            elif hasattr(response, '__dict__'):
-                data = response.__dict__
-            else:
-                data = response
-
             with open(filepath, 'w') as f:
                 json.dump(data, f, indent=2, default=str)
 
@@ -369,85 +346,49 @@ class YouTubeClient:
         except Exception as e:
             logger.warning(f"Could not save raw YouTube response: {e}")
 
-    def fetch_channel_videos(self, channel_name: str, limit: int = 10) -> list[YouTubePost]:
+    def fetch_channel_videos(self, channel_name: str, channel_id: str, limit: int = 5) -> List[YouTubePost]:
         """Fetch recent videos from a specific YouTube channel.
 
         Args:
-            channel_name: YouTube channel handle (e.g., "@CoinBureau" or "CoinBureau")
+            channel_name: Human-readable channel name
+            channel_id: YouTube channel ID (UC...)
             limit: Maximum number of videos to fetch
         """
         if not self.enabled:
             return []
 
-        end_date = datetime.utcnow()
-        start_date = end_date - timedelta(days=7)  # Last week
-
-        # Remove @ prefix if present (API might not expect it)
-        clean_channel = channel_name.lstrip('@')
-
-        try:
-            def _api_call():
-                return self.client.sn13.OnDemandData(
-                    source='YouTube',
-                    usernames=[clean_channel],
-                    keywords=[],  # Keywords ignored for YouTube
-                    start_date=start_date.strftime('%Y-%m-%d'),
-                    end_date=end_date.strftime('%Y-%m-%d'),
-                    limit=limit,
-                )
-
-            response = self._retry_with_backoff(_api_call)
-            self._save_raw_response(response, f"yt_{clean_channel}")
-            return self._parse_response(response)
-
-        except Exception as e:
-            logger.error(f"Error fetching YouTube channel {channel_name}: {e}")
+        # Get uploads playlist ID
+        playlist_id = self._get_uploads_playlist_id(channel_id)
+        if not playlist_id:
             return []
 
-    def _fetch_by_keyword(self, keyword: str, limit: int = 20) -> list[YouTubePost]:
-        """Fetch YouTube videos by keyword search (fallback if channel-based fails).
-
-        Per Macrocosmos docs: YouTube accepts either one username OR one keyword.
-        """
-        if not self.enabled:
+        # Get recent video IDs
+        video_ids = self._get_recent_video_ids(playlist_id, max_results=limit)
+        if not video_ids:
             return []
 
-        end_date = datetime.utcnow()
-        start_date = end_date - timedelta(days=7)
+        # Get video details
+        videos = self._get_video_details(video_ids)
 
-        try:
-            def _api_call():
-                return self.client.sn13.OnDemandData(
-                    source='YouTube',
-                    usernames=[],  # Empty for keyword search
-                    keywords=[keyword],  # Single keyword
-                    start_date=start_date.strftime('%Y-%m-%d'),
-                    end_date=end_date.strftime('%Y-%m-%d'),
-                    limit=limit,
-                )
+        # Parse into YouTubePost objects
+        posts = []
+        for video in videos:
+            post = self._parse_video(video, channel_name)
+            if post:
+                posts.append(post)
 
-            response = self._retry_with_backoff(_api_call)
-            self._save_raw_response(response, f"yt_kw_{keyword}")
-            return self._parse_response(response)
-
-        except Exception as e:
-            logger.error(f"Error fetching YouTube by keyword '{keyword}': {e}")
-            return []
+        return posts
 
     def fetch_trading_signals(
         self,
         limit: int = 100,
-        hours_back: int = 72,  # YouTube content is less frequent
-    ) -> list[YouTubePost]:
+        hours_back: int = 72,
+    ) -> List[YouTubePost]:
         """
         Fetch trading signals from top crypto YouTube channels.
 
-        Strategy:
-        1. Try channel-based queries first (more targeted)
-        2. If no results, fall back to keyword search (broader)
-
         Args:
-            limit: Maximum videos to fetch per channel
+            limit: Maximum videos to fetch per channel (5 default)
             hours_back: Only include videos from last N hours
 
         Returns:
@@ -459,48 +400,51 @@ class YouTubeClient:
 
         logger.info(f"Fetching YouTube signals from {len(self.CRYPTO_CHANNELS)} channels...")
 
-        all_posts = []
+        all_video_ids = []
+        channel_map = {}  # video_id -> channel_name
 
-        # Strategy 1: Fetch from channels (one API call per channel)
-        # Use top 25 channels to balance coverage vs API calls
-        channels_to_fetch = self.CRYPTO_CHANNELS[:25]
-        videos_per_channel = max(5, limit // len(channels_to_fetch))
+        # Step 1: Get recent video IDs from all channels (1 unit per channel)
+        videos_per_channel = max(3, limit // len(self.CRYPTO_CHANNELS))
 
-        for channel in channels_to_fetch:
+        for channel_name, channel_id in self.CRYPTO_CHANNELS:
             try:
-                posts = self.fetch_channel_videos(channel, limit=videos_per_channel)
-                all_posts.extend(posts)
-                if posts:
-                    logger.info(f"YouTube {channel}: {len(posts)} videos")
+                playlist_id = self._get_uploads_playlist_id(channel_id)
+                if not playlist_id:
+                    continue
+
+                video_ids = self._get_recent_video_ids(playlist_id, max_results=videos_per_channel)
+                for vid in video_ids:
+                    if vid not in self._seen_post_ids:
+                        all_video_ids.append(vid)
+                        channel_map[vid] = channel_name
+
             except Exception as e:
-                logger.error(f"Error fetching YouTube channel {channel}: {e}")
+                logger.warning(f"Error fetching from {channel_name}: {e}")
                 continue
 
-        # Strategy 2: Fallback to keyword search if channel-based returned nothing
-        if not all_posts:
-            logger.info("Channel-based search returned no results, trying keyword search...")
-            crypto_keywords = [
-                "bitcoin price prediction",
-                "crypto trading analysis",
-                "ethereum technical analysis",
-                "solana price",
-                "altcoin signals",
-            ]
-            for keyword in crypto_keywords[:3]:  # Limit to 3 keywords
-                try:
-                    posts = self._fetch_by_keyword(keyword, limit=limit // 3)
-                    all_posts.extend(posts)
-                    if posts:
-                        logger.info(f"YouTube keyword '{keyword}': {len(posts)} videos")
-                except Exception as e:
-                    logger.error(f"Error in keyword search: {e}")
-                    continue
+        logger.info(f"Found {len(all_video_ids)} new video IDs from channels")
+
+        if not all_video_ids:
+            return []
+
+        # Step 2: Get video details in batches (1 unit per 50 videos)
+        videos = self._get_video_details(all_video_ids)
+        self._save_raw_response(videos, "batch_fetch")
+
+        # Step 3: Parse into YouTubePost objects
+        all_posts = []
+        for video in videos:
+            video_id = video.get('id')
+            channel_name = channel_map.get(video_id, 'Unknown')
+            post = self._parse_video(video, channel_name)
+            if post:
+                all_posts.append(post)
 
         # Filter by time
         cutoff = datetime.utcnow() - timedelta(hours=hours_back)
         recent_posts = [p for p in all_posts if p.posted_at >= cutoff]
 
-        # Limit seen cache size (OrderedDict maintains insertion order for FIFO eviction)
+        # Limit seen cache size
         if len(self._seen_post_ids) > SEEN_POSTS_CACHE_MAX_SIZE:
             items_to_keep = list(self._seen_post_ids.keys())[-SEEN_POSTS_CACHE_TRIM_SIZE:]
             self._seen_post_ids = OrderedDict.fromkeys(items_to_keep)
@@ -517,51 +461,28 @@ class YouTubeClient:
         logger.info("Reset YouTube client state")
 
     def test_connection(self) -> dict:
-        """Test if YouTube API is working and return diagnostic info.
-
-        Returns:
-            Dict with status, method that worked, and sample data
-        """
+        """Test if YouTube API is working and return diagnostic info."""
         if not self.enabled:
             return {"status": "disabled", "reason": "No API key configured"}
 
         result = {
             "status": "unknown",
-            "channel_query_works": False,
+            "channels_accessible": 0,
             "videos_found": 0,
             "error": None,
         }
 
-        # Test with a known large channel (one at a time per API requirement)
         try:
-            end_date = datetime.utcnow()
-            start_date = end_date - timedelta(days=7)
+            # Test with first channel
+            channel_name, channel_id = self.CRYPTO_CHANNELS[0]
+            posts = self.fetch_channel_videos(channel_name, channel_id, limit=3)
 
-            response = self.client.sn13.OnDemandData(
-                source='YouTube',
-                usernames=["CoinBureau"],  # ONE channel name only
-                keywords=[],  # Must be empty for YouTube
-                start_date=start_date.strftime('%Y-%m-%d'),
-                end_date=end_date.strftime('%Y-%m-%d'),
-                limit=5,
-            )
+            result["channels_accessible"] = 1
+            result["videos_found"] = len(posts)
 
-            result["raw_response_type"] = type(response).__name__
-
-            # Check if we got data
-            if hasattr(response, 'data') and response.data:
-                result["channel_query_works"] = True
-                result["videos_found"] = len(response.data)
-            elif isinstance(response, list) and response:
-                result["channel_query_works"] = True
-                result["videos_found"] = len(response)
-            elif isinstance(response, dict) and response.get('data'):
-                result["channel_query_works"] = True
-                result["videos_found"] = len(response['data'])
-
-            # Determine status
-            if result["channel_query_works"]:
+            if posts:
                 result["status"] = "working"
+                result["sample_video"] = posts[0].text[:100] + "..."
             else:
                 result["status"] = "no_data"
 
@@ -627,7 +548,7 @@ class YouTubeClient:
             logger.warning(f"Error fetching transcript for {video_id}: {e}")
             return None
 
-    def enrich_with_transcripts(self, posts: list[YouTubePost], max_posts: int = 20) -> list[YouTubePost]:
+    def enrich_with_transcripts(self, posts: List[YouTubePost], max_posts: int = 20) -> List[YouTubePost]:
         """
         Enrich YouTube posts with transcripts.
 

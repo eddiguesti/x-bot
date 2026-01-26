@@ -30,6 +30,9 @@ class Settings(BaseSettings):
     telegram_bot_token: str = Field(default="", alias="TELEGRAM_BOT_TOKEN")
     telegram_chat_id: str = Field(default="", alias="TELEGRAM_CHAT_ID")
 
+    # YouTube Data API (for fetching crypto channel videos)
+    youtube_api_key: str = Field(default="", alias="YOUTUBE_API_KEY")
+
     # LLM APIs for signal extraction
     # Primary: Gemini Flash (cheapest + reliable)
     gemini_api_key: str = Field(default="", alias="GEMINI_API_KEY")
