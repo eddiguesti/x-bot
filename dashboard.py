@@ -1277,12 +1277,12 @@ def generate_dashboard_html(**kwargs) -> str:
 
             <nav class="nav-section">
                 <div class="nav-label">Overview</div>
-                <div class="nav-item active">
-                    <span class="icon">D</span>
+                <div class="nav-item active" onclick="navigateTo('overview')" title="View portfolio overview and key metrics">
+                    <span class="icon">📊</span>
                     <span class="label">Dashboard</span>
                 </div>
-                <div class="nav-item">
-                    <span class="icon">$</span>
+                <div class="nav-item" onclick="navigateTo('strategies')" title="View all 15 trading strategies">
+                    <span class="icon">💹</span>
                     <span class="label">Strategies</span>
                     <span class="nav-badge">{len(stats)}</span>
                 </div>
@@ -1290,30 +1290,30 @@ def generate_dashboard_html(**kwargs) -> str:
 
             <nav class="nav-section">
                 <div class="nav-label">Analytics</div>
-                <div class="nav-item">
-                    <span class="icon">~</span>
+                <div class="nav-item" onclick="navigateTo('signals')" title="View signal sources and distribution">
+                    <span class="icon">📡</span>
                     <span class="label">Signals</span>
                     <span class="nav-badge">{signal_stats.get('totals', {}).get('total', 0)}</span>
                 </div>
-                <div class="nav-item">
-                    <span class="icon">*</span>
+                <div class="nav-item" onclick="navigateTo('creators')" title="View top-rated content creators by Glicko-2 rating">
+                    <span class="icon">⭐</span>
                     <span class="label">Creators</span>
                 </div>
-                <div class="nav-item">
-                    <span class="icon">#</span>
+                <div class="nav-item" onclick="navigateTo('trades')" title="View recent trade history">
+                    <span class="icon">📋</span>
                     <span class="label">Trades</span>
                 </div>
             </nav>
 
             <nav class="nav-section">
                 <div class="nav-label">System</div>
-                <div class="nav-item">
-                    <span class="icon">?</span>
-                    <span class="label">Health</span>
+                <div class="nav-item" onclick="navigateTo('chart')" title="View equity curves comparison">
+                    <span class="icon">📈</span>
+                    <span class="label">Charts</span>
                 </div>
-                <div class="nav-item">
-                    <span class="icon">!</span>
-                    <span class="label">Settings</span>
+                <div class="nav-item" onclick="window.open('/health', '_blank')" title="Check system health status">
+                    <span class="icon">💚</span>
+                    <span class="label">Health</span>
                 </div>
             </nav>
         </aside>
@@ -1336,28 +1336,28 @@ def generate_dashboard_html(**kwargs) -> str:
             </header>
 
             <!-- Stats Overview -->
-            <div class="stats-grid">
-                <div class="stat-card">
+            <div id="overview" class="stats-grid">
+                <div class="stat-card" title="Combined balance of all 15 trading strategies starting from $10,000 each">
                     <div class="label">Total Balance</div>
                     <div class="value">${total_balance:,.0f}</div>
-                    <div class="change">{len(stats)} strategies combined</div>
+                    <div class="change">{len(stats)} strategies × $10,000 initial</div>
                 </div>
-                <div class="stat-card">
+                <div class="stat-card" title="Percentage gain/loss across all strategies since trading began">
                     <div class="label">Total Return</div>
                     <div class="value {'positive' if total_return >= 0 else 'negative'}">{total_return:+.2f}%</div>
                     <div class="change">Since inception</div>
                 </div>
-                <div class="stat-card">
+                <div class="stat-card" title="Net profit or loss in USD across all strategies">
                     <div class="label">Total P&L</div>
                     <div class="value {'positive' if total_pnl >= 0 else 'negative'}">${total_pnl:+,.2f}</div>
                     <div class="change">Net profit/loss</div>
                 </div>
-                <div class="stat-card">
+                <div class="stat-card" title="Total number of completed trades across all strategies">
                     <div class="label">Total Trades</div>
                     <div class="value">{total_trades}</div>
                     <div class="change">All strategies</div>
                 </div>
-                <div class="stat-card">
+                <div class="stat-card" title="Average win rate across all strategies - above 50% is profitable">
                     <div class="label">Avg Win Rate</div>
                     <div class="value {'positive' if avg_win_rate >= 50 else 'negative'}">{avg_win_rate:.1f}%</div>
                     <div class="change">Combined average</div>
@@ -1402,7 +1402,7 @@ def generate_dashboard_html(**kwargs) -> str:
             '''}
 
             <!-- Signal Stats -->
-            <div class="signals-grid">
+            <div id="signals" class="signals-grid">
                 <div class="signal-stat">
                     <div class="icon">X</div>
                     <div class="value">{signal_stats.get('totals', {}).get('twitter', 0):,}</div>
@@ -1430,7 +1430,7 @@ def generate_dashboard_html(**kwargs) -> str:
             </div>
 
             <!-- Strategy Tabs -->
-            <div class="tabs">
+            <div id="strategies" class="tabs">
                 <button class="tab active" onclick="showGroup('all')">All</button>
                 <button class="tab" onclick="showGroup('twitter')">Twitter</button>
                 <button class="tab" onclick="showGroup('reddit')">Reddit</button>
@@ -1552,7 +1552,7 @@ def generate_dashboard_html(**kwargs) -> str:
     # Main equity chart
     html += f'''
             <!-- Main Chart -->
-            <div class="chart-section">
+            <div id="chart" class="chart-section">
                 <div class="chart-header">
                     <h2 class="chart-title">Equity Curves Comparison</h2>
                 </div>
@@ -1562,8 +1562,9 @@ def generate_dashboard_html(**kwargs) -> str:
             </div>
 
             <!-- Top Creators -->
-            <div class="section-header">
+            <div id="creators" class="section-header">
                 <h2>Top Creators by Source</h2>
+                <span class="badge" style="background: rgba(139, 92, 246, 0.2); color: #8b5cf6;" title="Creators are ranked using Glicko-2 rating system based on signal accuracy">Glicko-2 Rated</span>
             </div>
             <div class="creators-grid">
     '''
@@ -1615,7 +1616,7 @@ def generate_dashboard_html(**kwargs) -> str:
             </div>
 
             <!-- Recent Trades -->
-            <div class="trades-section" style="margin-top: 24px;">
+            <div id="trades" class="trades-section" style="margin-top: 24px;">
                 <div class="trades-header">
                     <h2 class="trades-title">Recent Trades</h2>
                     <span style="color: var(--text-muted);">Last 20 trades across all strategies</span>
@@ -1787,6 +1788,58 @@ def generate_dashboard_html(**kwargs) -> str:
                 }}
             }});
         }}
+
+        // Sidebar navigation
+        function navigateTo(sectionId) {{
+            // Update active state
+            document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+            event.currentTarget.classList.add('active');
+
+            // Scroll to section
+            const element = document.getElementById(sectionId);
+            if (element) {{
+                element.scrollIntoView({{ behavior: 'smooth', block: 'start' }});
+            }}
+        }}
+
+        // Add tooltips functionality
+        document.querySelectorAll('[title]').forEach(el => {{
+            el.style.cursor = 'help';
+        }});
+
+        // Update active nav on scroll
+        window.addEventListener('scroll', () => {{
+            const sections = ['overview', 'signals', 'strategies', 'chart', 'creators', 'trades'];
+            let current = 'overview';
+
+            sections.forEach(id => {{
+                const section = document.getElementById(id);
+                if (section) {{
+                    const rect = section.getBoundingClientRect();
+                    if (rect.top <= 150) {{
+                        current = id;
+                    }}
+                }}
+            }});
+
+            // Map section to nav item
+            const navMap = {{
+                'overview': 0,
+                'strategies': 1,
+                'signals': 2,
+                'creators': 3,
+                'trades': 4,
+                'chart': 5
+            }};
+
+            document.querySelectorAll('.nav-item').forEach((item, idx) => {{
+                if (idx === navMap[current]) {{
+                    item.classList.add('active');
+                }} else {{
+                    item.classList.remove('active');
+                }}
+            }});
+        }});
     </script>
 </body>
 </html>
